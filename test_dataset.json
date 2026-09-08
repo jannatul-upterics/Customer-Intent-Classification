@@ -1,0 +1,310 @@
+[
+  {
+    "id": "TC001",
+    "input": "I'd like a table for five this Saturday at 8 PM. One person is vegetarian.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 5,
+      "date": "Saturday",
+      "time": "20:00",
+      "food_preference": [
+        "vegetarian"
+      ]
+    }
+  },
+  {
+    "id": "TC002",
+    "input": "Table for 4 on Friday at 19:30. Two of us are vegan and one is gluten-free.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 4,
+      "date": "Friday",
+      "time": "19:30",
+      "food_preference": [
+        "vegan",
+        "gluten-free"
+      ]
+    }
+  },
+  {
+    "id": "TC003",
+    "input": "Can I book a quiet table for just myself tomorrow at 1:00 PM? No dietary requirements.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 1,
+      "date": "tomorrow",
+      "time": "13:00",
+      "food_preference": []
+    }
+  },
+  {
+    "id": "TC004",
+    "input": "Do you have a table for a couple tonight at 8:30 PM? We only eat halal.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 2,
+      "date": "tonight",
+      "time": "20:30",
+      "food_preference": [
+        "halal"
+      ]
+    }
+  },
+  {
+    "id": "TC005",
+    "input": "Looking to reserve a table for six this Sunday evening. Not sure about the exact time yet.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 6,
+      "date": "Sunday",
+      "time": null,
+      "food_preference": []
+    }
+  },
+  {
+    "id": "TC006",
+    "input": "Can we get a reservation for tomorrow at 7 PM? Someone in our party is dairy-free.",
+    "expected": {
+      "intent": "booking",
+      "party_size": null,
+      "date": "tomorrow",
+      "time": "19:00",
+      "food_preference": [
+        "dairy-free"
+      ]
+    }
+  },
+  {
+    "id": "TC007",
+    "input": "We'd like a table for three at 6:45 PM please.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 3,
+      "date": null,
+      "time": "18:45",
+      "food_preference": []
+    }
+  },
+  {
+    "id": "TC008",
+    "input": "hey can i get tbl for 3 peopel tommorow at 9 pm plz, one is vegitarian",
+    "expected": {
+      "intent": "booking",
+      "party_size": 3,
+      "date": "tomorrow",
+      "time": "21:00",
+      "food_preference": [
+        "vegetarian"
+      ]
+    }
+  },
+  {
+    "id": "TC009",
+    "input": "Hey mate, gonna need a spot for me and 7 buddies this Thursday around 8 PM, all halal meat please.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 8,
+      "date": "Thursday",
+      "time": "20:00",
+      "food_preference": [
+        "halal"
+      ]
+    }
+  },
+  {
+    "id": "TC010",
+    "input": "Hi, I need a table for 4 this Wednesday at 7 PM. My sister has a severe nut allergy. Also, is street parking easy nearby, and do you have high chairs?",
+    "expected": {
+      "intent": "booking",
+      "party_size": 4,
+      "date": "Wednesday",
+      "time": "19:00",
+      "food_preference": [
+        "nut-free"
+      ]
+    }
+  },
+  {
+    "id": "TC011",
+    "input": "I'd like to book a table for 4... actually wait, make that 6 people for this Saturday at 8 PM. No food restrictions.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 6,
+      "date": "Saturday",
+      "time": "20:00",
+      "food_preference": []
+    }
+  },
+  {
+    "id": "TC012",
+    "input": "Reserve a table for two on Thursday, sorry I meant Friday at 6:30 PM. One vegetarian.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 2,
+      "date": "Friday",
+      "time": "18:30",
+      "food_preference": [
+        "vegetarian"
+      ]
+    }
+  },
+  {
+    "id": "TC013",
+    "input": "Can I get a table for 3 people this Sunday at 10:30 AM? Two guests are kosher.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 3,
+      "date": "Sunday",
+      "time": "10:30",
+      "food_preference": [
+        "kosher"
+      ]
+    }
+  },
+  {
+    "id": "TC014",
+    "input": "Can we reserve a booth for four this Friday evening? We'll drop by sometime between 6 and 9 PM.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 4,
+      "date": "Friday",
+      "time": null,
+      "food_preference": []
+    }
+  },
+  {
+    "id": "TC015",
+    "input": "I'd like to book a table for five sometime next weekend at 7 PM. One person is pescatarian.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 5,
+      "date": null,
+      "time": "19:00",
+      "food_preference": [
+        "pescatarian"
+      ]
+    }
+  },
+  {
+    "id": "TC016",
+    "input": "Can I book a table for 2 on February 31st at 8 PM? No allergies.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 2,
+      "date": null,
+      "time": "20:00",
+      "food_preference": []
+    }
+  },
+  {
+    "id": "TC017",
+    "input": "I need to reserve a table for 150 people tomorrow at 6 PM. Some guests are vegetarian.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 150,
+      "date": "tomorrow",
+      "time": "18:00",
+      "food_preference": [
+        "vegetarian"
+      ]
+    }
+  },
+  {
+    "id": "TC018",
+    "input": "I want to reserve a table for zero people this Saturday at 8 PM to store our suitcases.",
+    "expected": {
+      "intent": "booking",
+      "party_size": null,
+      "date": "Saturday",
+      "time": "20:00",
+      "food_preference": []
+    }
+  },
+  {
+    "id": "TC019",
+    "input": "Booking for 8 guests on Monday at 12:00 PM. We have one vegan, one celiac gluten-free, and one peanut allergy.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 8,
+      "date": "Monday",
+      "time": "12:00",
+      "food_preference": [
+        "vegan",
+        "gluten-free",
+        "nut-free"
+      ]
+    }
+  },
+  {
+    "id": "TC020",
+    "input": "Please cancel our reservation for four people this Friday at 8 PM.",
+    "expected": {
+      "intent": "cancellation",
+      "party_size": 4,
+      "date": "Friday",
+      "time": "20:00",
+      "food_preference": []
+    }
+  },
+  {
+    "id": "TC021",
+    "input": "Can I change my booking for tomorrow from 7 PM to 9 PM for two people?",
+    "expected": {
+      "intent": "modification",
+      "party_size": 2,
+      "date": "tomorrow",
+      "time": "21:00",
+      "food_preference": []
+    }
+  },
+  {
+    "id": "TC022",
+    "input": "Do you offer vegan options and what time do you close this Saturday?",
+    "expected": {
+      "intent": "inquiry",
+      "party_size": null,
+      "date": "Saturday",
+      "time": null,
+      "food_preference": [
+        "vegan"
+      ]
+    }
+  },
+  {
+    "id": "TC023",
+    "input": "We have a party of ten celebrating a graduation on Saturday at 20:00. Three members are strictly vegetarian.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 10,
+      "date": "Saturday",
+      "time": "20:00",
+      "food_preference": [
+        "vegetarian"
+      ]
+    }
+  },
+  {
+    "id": "TC024",
+    "input": "Table for two this Tuesday at noon. Both are halal.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 2,
+      "date": "Tuesday",
+      "time": "12:00",
+      "food_preference": [
+        "halal"
+      ]
+    }
+  },
+  {
+    "id": "TC025",
+    "input": "Table please.",
+    "expected": {
+      "intent": "booking",
+      "party_size": null,
+      "date": null,
+      "time": null,
+      "food_preference": []
+    }
+  }
+]

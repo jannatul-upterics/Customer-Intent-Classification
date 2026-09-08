@@ -1,6 +1,8 @@
 import os
 import sys
 import json
+import re
+import time
 import requests
 
 try:
@@ -10,311 +12,104 @@ except ImportError:
     pass
 
 # ---------------------------------------------------------------------------
-# Allowed Intent Set (Exact 64 Categories)
+# Required Fields Schema
 # ---------------------------------------------------------------------------
-ALLOWED_INTENTS = {
-    "Accepting Adjusted Time",
-    "Accepting Alternative Time",
-    "Accepting Cake Plating Fee",
-    "Acknowledging Table Check",
-    "Adding Dietary & Allergy Needs",
-    "Asking About Deposit Policy",
-    "Asking About Group Booking Rules",
-    "Asking About Outside Cake Policy",
-    "Asking About Parking",
-    "Asking for Flexible Seating",
-    "Asking for Wi-Fi Password",
-    "Asking for Zero-Guest Table",
-    "Booking for a Special Occasion",
-    "Booking with Vague Time",
-    "Cancelling the Booking",
-    "Changing Date & Meal Time",
-    "Changing Guest Count",
-    "Changing Seating Preference",
-    "Checking Dining Room Hours",
-    "Confirming Booking Details",
-    "Confirming No Allergies",
-    "Confirming Party Size & Time",
-    "Confirming Preferred Time",
-    "Correcting Date & Stating Occasion",
-    "Correcting Reservation Date",
-    "Decreasing Guest Count",
-    "Disputing Restaurant Policy",
-    "Dropping Pets and Bags Request",
-    "Ending Call to Call Back",
-    "Ending Request & Asking for Email",
-    "Explaining Luggage and Pets",
-    "Giving Confused Date Info",
-    "Giving Date, Time & Headcount",
-    "Increasing Guest Count",
-    "Initial Table Booking",
-    "Inquiring About Halal Food",
-    "Inquiring About Vegan Menu",
-    "Inquiring About Weekend Table",
-    "Inquiring About Wheelchair Access",
-    "Making Ambiguous Request",
-    "Offering Multiple Times",
-    "Ordering Delivery",
-    "Pausing the Reservation",
-    "Providing Contact Information",
-    "Providing Customer Name",
-    "Providing Date",
-    "Providing Guest Count",
-    "Providing Invalid Date",
-    "Providing Name & Contact",
-    "Providing Name & Phone",
-    "Providing Preferred Time",
-    "Pushing Reservation Time Back",
-    "Reporting Severe Gluten Allergy",
-    "Reporting Severe Peanut Allergy",
-    "Requesting Birthday Note",
-    "Requesting Booth & Dietary Info",
-    "Requesting High Chair & Space",
-    "Requesting Occasion Seating",
-    "Requesting Patio Seating",
-    "Requesting Unrealistic Guest Count",
-    "Requesting Unreasonable Table Setup",
-    "Requesting Work Booth & Outlet",
-    "Selecting Specific Time",
-    "Switching to Table Booking"
+REQUIRED_FIELDS = ["intent", "party_size", "date", "time", "food_preference"]
+
+# Canonical dietary mappings
+FOOD_SYNONYMS = {
+    "peanut allergy": "nut-free",
+    "peanut allergies": "nut-free",
+    "nut allergy": "nut-free",
+    "tree nut allergy": "nut-free",
+    "peanuts": "nut-free",
+    "nuts": "nut-free",
+    "celiac": "gluten-free",
+    "celiac disease": "gluten-free",
+    "lactose": "dairy-free",
+    "lactose intolerant": "dairy-free",
+    "lactose-free": "dairy-free",
 }
 
 # ---------------------------------------------------------------------------
-# Improved System Prompt
+# Improved Extraction System Prompt
 # ---------------------------------------------------------------------------
-SYSTEM_PROMPT = """You are a customer intent classification system for a restaurant table-booking assistant.
+SYSTEM_PROMPT = """You are an expert Natural Language Understanding (NLU) extraction engine specialized in restaurant reservation systems. Your task is to analyze customer messages, identify their primary intent, and extract structured booking parameters.
 
-Your task is to identify the single primary intent of the customer's message.
+You must extract exactly the following five fields:
+1. "intent": The customer's primary objective ("booking", "inquiry", "cancellation", "modification"). If the user is requesting or asking to reserve a table, set this to "booking". If asking questions without reserving, set to "inquiry". If cancelling, set to "cancellation". If modifying an existing reservation, set to "modification".
+2. "party_size": The total number of guests as an integer. Convert word numbers to digits (e.g., "five" -> 5, "a couple" -> 2, "myself" -> 1). If unspecified, ambiguous, or zero/negative, set to null.
+3. "date": The target reservation day or date normalized:
+   - Extract canonical single day names, removing leading modifiers (e.g., "this Friday" -> "Friday", "on Saturday" -> "Saturday", "this Sunday" -> "Sunday").
+   - Relative day terms without a specific weekday: "today", "tonight", "tomorrow".
+   - Indefinite multi-day ranges (e.g., "next weekend", "sometime this week", "next week"): must be set to null.
+   - Non-existent / impossible calendar dates (e.g., "February 30th", "February 31st"): must be set to null.
+   - If unspecified or missing, set to null.
+4. "time": The reservation time standardized strictly into 24-hour "HH:MM" format (e.g., "8 PM" -> "20:00", "around 8 PM" -> "20:00", "1:30 PM" -> "13:30", "9 AM" -> "09:00", "noon" -> "12:00", "19:30" -> "19:30"). Approximate times anchored to a specific hour (e.g., "around 8 PM") should resolve to that hour ("20:00"). Only wide multi-hour intervals (e.g. "between 6 and 9 PM", "evening") or unspecified times should be set to null.
+5. "food_preference": An array of standardized dietary restriction and allergy tags mentioned in the message, even for general inquiries. Map terms to canonical tags:
+   - Peanut / tree nut allergy -> "nut-free"
+   - Celiac / gluten allergy -> "gluten-free"
+   - Lactose intolerant / dairy allergy -> "dairy-free"
+   - Vegetarian -> "vegetarian"
+   - Vegan -> "vegan"
+   - Halal -> "halal"
+   - Kosher -> "kosher"
+   - Pescatarian -> "pescatarian"
+   If no dietary preferences are mentioned, this must be an empty array [].
 
-You must classify the message using ONLY the following allowed intents:
+Strict Extraction and Normalization Rules:
+- All five fields ("intent", "party_size", "date", "time", "food_preference") must always be present in the output JSON.
+- Never omit a key. Use null when an entity cannot be determined, except for food_preference which must always be an array ([] if none).
+- Distinguish between numbers denoting party size and numbers denoting time or dietary counts (e.g., in "table for five at 8 PM, one person is vegetarian", party_size is 5, not 1 or 8).
+- In case of inline user corrections, prioritize the latest corrected value.
+- Robustly handle natural conversational variations, colloquial phrasing, informal slang, and minor typos or grammatical errors.
+- Never invent information not provided in the customer message.
+- Return raw JSON only. Do not enclose the output in markdown code fences. Do not include any explanations, greetings, or extra text.
 
-- Accepting Adjusted Time
-- Accepting Alternative Time
-- Accepting Cake Plating Fee
-- Acknowledging Table Check
-- Adding Dietary & Allergy Needs
-- Asking About Deposit Policy
-- Asking About Group Booking Rules
-- Asking About Outside Cake Policy
-- Asking About Parking
-- Asking for Flexible Seating
-- Asking for Wi-Fi Password
-- Asking for Zero-Guest Table
-- Booking for a Special Occasion
-- Booking with Vague Time
-- Cancelling the Booking
-- Changing Date & Meal Time
-- Changing Guest Count
-- Changing Seating Preference
-- Checking Dining Room Hours
-- Confirming Booking Details
-- Confirming No Allergies
-- Confirming Party Size & Time
-- Confirming Preferred Time
-- Correcting Date & Stating Occasion
-- Correcting Reservation Date
-- Decreasing Guest Count
-- Disputing Restaurant Policy
-- Dropping Pets and Bags Request
-- Ending Call to Call Back
-- Ending Request & Asking for Email
-- Explaining Luggage and Pets
-- Giving Confused Date Info
-- Giving Date, Time & Headcount
-- Increasing Guest Count
-- Initial Table Booking
-- Inquiring About Halal Food
-- Inquiring About Vegan Menu
-- Inquiring About Weekend Table
-- Inquiring About Wheelchair Access
-- Making Ambiguous Request
-- Offering Multiple Times
-- Ordering Delivery
-- Pausing the Reservation
-- Providing Contact Information
-- Providing Customer Name
-- Providing Date
-- Providing Guest Count
-- Providing Invalid Date
-- Providing Name & Contact
-- Providing Name & Phone
-- Providing Preferred Time
-- Pushing Reservation Time Back
-- Reporting Severe Gluten Allergy
-- Reporting Severe Peanut Allergy
-- Requesting Birthday Note
-- Requesting Booth & Dietary Info
-- Requesting High Chair & Space
-- Requesting Occasion Seating
-- Requesting Patio Seating
-- Requesting Unrealistic Guest Count
-- Requesting Unreasonable Table Setup
-- Requesting Work Booth & Outlet
-- Selecting Specific Time
-- Switching to Table Booking
+Examples:
 
-Intent Definitions:
-- Accepting Adjusted Time: Customer accepts a newly proposed table time after requesting an adjustment, delay, or postponement (e.g., '1:45 PM is perfect! That gives us breathing room').
-- Accepting Alternative Time: Customer accepts an alternative time slot offered by the restaurant because the originally requested time was fully booked (e.g., 'Yes, 8:30 is fine').
-- Accepting Cake Plating Fee: Customer agrees to the restaurant's outside cake plating/cutting fee and may request celebratory service details like candles.
-- Acknowledging Table Check: Customer gives brief conversational consent for the assistant to check table inventory (e.g., 'Okay', 'Go ahead').
-- Adding Dietary & Allergy Needs: Customer informs staff of both dietary preferences (e.g., vegetarian) and medical allergies (e.g., nuts) in one message.
-- Asking About Deposit Policy: Customer inquires about or reacts with hesitation to credit card deposit requirements for large parties.
-- Asking About Group Booking Rules: Customer inquires about lead times, policies, or event manager contacts for large group reservations.
-- Asking About Outside Cake Policy: Customer asks whether they are permitted to bring a personal cake and checks associated plating fees.
-- Asking About Parking: Customer inquires about parking facilities, dedicated parking lots, or valet options.
-- Asking for Flexible Seating: Customer asks if the restaurant can hold an undecided, floating headcount range (e.g., 'anywhere from 8 to 12 people') or variable tables.
-- Asking for Wi-Fi Password: Customer asks for the venue's guest Wi-Fi credentials or internet connectivity details.
-- Asking for Zero-Guest Table: Customer explicitly requests a table for 'zero people' (typically intending to store luggage, equipment, or pets).
-- Booking for a Special Occasion: Customer initiates a booking explicitly mentioning a celebration, milestone, or special event (e.g., birthday, anniversary).
-- Booking with Vague Time: Customer gives an imprecise, approximate dining time (e.g., 'sometime after 8, around 8-ish', '7:30ish').
-- Cancelling the Booking: Customer explicitly terminates the reservation process, rejects conditions, and states they will not book or will go elsewhere.
-- Changing Date & Meal Time: Customer modifies both the target day and the meal period (e.g., switching from Saturday lunch to Sunday dinner).
-- Changing Guest Count: Customer corrects a miscount or amends a previously stated party size without explicit directional increase/decrease verbs (e.g., 'actually seven people, not six').
-- Changing Seating Preference: Customer changes their seating preference (e.g., switching from outdoor patio to indoor window table due to weather).
-- Checking Dining Room Hours: Customer inquires whether the dine-in dining room is open tonight upon learning telephone delivery is unavailable.
-- Confirming Booking Details: Customer confirms that final summarized reservation details repeated by the assistant are accurate (e.g., 'Yes, that's correct').
-- Confirming No Allergies: Customer clarifies that no members of the party have dietary restrictions or allergies (e.g., 'No, neither of us has allergies', 'Nope, we eat everything').
-- Confirming Party Size & Time: Customer confirms a historical or inferred headcount and dining time together (e.g., 'Yeah, exactly, 8 people at 9 PM').
-- Confirming Preferred Time: Customer re-confirms that an originally requested dining time is still desired after resolving unrelated detours.
-- Correcting Date & Stating Occasion: Customer rectifies a mistaken booking date and simultaneously explains the celebration event.
-- Correcting Reservation Date: Customer corrects a mistaken calendar date due to personal scheduling errors (e.g., 'Wait, I made a mistake! I meant next Saturday the 12th').
-- Decreasing Guest Count: Customer requests to reduce the party size because one or more guests cannot attend (e.g., 'drop us down to five', 'can you adjust it to five?').
-- Disputing Restaurant Policy: Customer objects to or argues against restaurant dining policies (e.g., mandatory prix fixe set menus or group minimums).
-- Dropping Pets and Bags Request: Customer relinquishes a request to bring luggage or pets after learning venue health/pet policies.
-- Ending Call to Call Back: Customer concludes the conversation stating they will call back after reaching consensus with group members.
-- Ending Request & Asking for Email: Customer drops the active booking attempt and asks for an email address to coordinate future events.
-- Explaining Luggage and Pets: Customer explains non-standard space requirements involving personal travel suitcases, luggage, or non-service animals.
-- Giving Confused Date Info: Customer demonstrates confusion regarding calendar dates, weekdays, or relative days (e.g., thinking Monday is tomorrow on a Thursday).
-- Giving Date, Time & Headcount: Customer provides date, dining time, and guest count together in a single statement (e.g., 'Let’s do 7:15 PM tonight. Just two people').
-- Increasing Guest Count: Customer requests to expand party size because additional guests are joining (e.g., 'Can we make that a table for six instead?').
-- Initial Table Booking: Customer initiates a new table reservation inquiry (e.g., 'Hi, I’d like to book a table for four', 'Can I get a table reserved for two tomorrow?').
-- Inquiring About Halal Food: Customer asks whether meats served comply with Halal dietary certification.
-- Inquiring About Vegan Menu: Customer asks whether substantive vegan entrées are offered rather than basic side salads.
-- Inquiring About Weekend Table: Customer broadly inquires about table availability across an undefined weekend period without specifying day or time.
-- Inquiring About Wheelchair Access: Customer inquires about step-free entry, accessible restrooms, or wheelchair table clearance.
-- Making Ambiguous Request: Customer requests a reservation using vague colloquialisms relying on assumed visit history (e.g., 'book me the usual spot and the usual number of people').
-- Offering Multiple Times: Customer suggests multiple alternative arrival times due to group schedule conflicts (e.g., 'maybe 5:30 or 6:00 PM. What do you have open?').
-- Ordering Delivery: Customer calls trying to place a takeaway food delivery order to a home address.
-- Pausing the Reservation: Customer asks the assistant to hold off on finalizing the booking while details are coordinated (e.g., 'please don't book anything yet').
-- Providing Contact Information: Customer supplies a phone number for the reservation.
-- Providing Customer Name: Customer supplies their name to hold the reservation.
-- Providing Date: Customer supplies the reservation date or day of the week.
-- Providing Guest Count: Customer states the party size in response to a direct headcount question (e.g., 'There will be six of us').
-- Providing Invalid Date: Customer requests a calendar date that does not exist (e.g., February 30th or February 31st).
-- Providing Name & Contact: Customer provides both customer name and telephone number together in a single turn.
-- Providing Name & Phone: Customer confirms name and telephone number specifically to locate an existing customer account/profile.
-- Providing Preferred Time: Customer states the target arrival time (e.g., 'Around 8 PM', 'Let's do 7:00 PM').
-- Pushing Reservation Time Back: Customer requests to postpone or delay arrival time due to scheduling delays.
-- Reporting Severe Gluten Allergy: Customer inquires about gluten-free food options and verifies strict cookware cross-contamination safety for celiac disease.
-- Reporting Severe Peanut Allergy: Customer alerts staff to a severe or airborne peanut allergy and verifies kitchen oil safety.
-- Requesting Birthday Note: Customer agrees to or requests a birthday celebration greeting note on the table.
-- Requesting Booth & Dietary Info: Customer specifies booth seating while simultaneously confirming absence of dietary restrictions.
-- Requesting High Chair & Space: Customer breaks down party demographics (adults + infant) and asks for a high chair or stroller table clearance.
-- Requesting Occasion Seating: Customer mentions a special celebration (e.g., anniversary) and requests dedicated seating (e.g., quiet romantic booth away from doors).
-- Requesting Patio Seating: Customer requests an outdoor patio dining table.
-- Requesting Unrealistic Guest Count: Customer requests an extreme party size (e.g., 60+ people) for immediate same-day dining.
-- Requesting Unreasonable Table Setup: Customer demands disruptive or physically impossible table layouts (e.g., pushing 10-12 tables together across a dining room).
-- Requesting Work Booth & Outlet: Customer requests a quiet solo table near an electrical wall outlet to charge a laptop.
-- Selecting Specific Time: Customer picks a specific dining time slot from options offered by the restaurant.
-- Switching to Table Booking: Customer converts an initial inquiry (e.g., delivery call) into an in-person table reservation.
+Customer Input: "I'd like a table for five this Saturday at 8 PM. One person is vegetarian."
+Output:
+{"intent": "booking", "party_size": 5, "date": "Saturday", "time": "20:00", "food_preference": ["vegetarian"]}
 
-Decision Rules & Disambiguation Guidelines:
+Customer Input: "Can we reserve a booth for four this Friday evening? We'll drop by sometime between 6 and 9 PM."
+Output:
+{"intent": "booking", "party_size": 4, "date": "Friday", "time": null, "food_preference": []}
 
-1. Handling Overlapping & Confusing Intent Pairs:
-   - Providing Name & Contact vs Providing Name & Phone:
-     * Use 'Providing Name & Phone' ONLY when the customer provides their name and number explicitly to retrieve an existing profile or history (e.g., 'Mark Rinaldi, phone is 555-011-2390' following 'the usual').
-     * For all standard instances of providing both name and phone together, classify as 'Providing Name & Contact'.
-   - Changing Guest Count vs Increasing / Decreasing Guest Count:
-     * If the customer explicitly asks to expand party size (e.g., 'make that six instead', 'add two people'), classify as 'Increasing Guest Count'.
-     * If the customer explicitly asks to reduce party size (e.g., 'drop us down to five', 'one bailed so make it four'), classify as 'Decreasing Guest Count'.
-     * If the customer states a correction to a miscount without explicit expand/drop verbs (e.g., 'actually seven, not six'), classify as 'Changing Guest Count'.
-   - Accepting Alternative Time vs Accepting Adjusted Time:
-     * Use 'Accepting Alternative Time' when the customer accepts an alternative slot offered because their original choice was fully booked (e.g., 'Yes, 8:30 is fine').
-     * Use 'Accepting Adjusted Time' when the customer requested to delay/postpone their booking and accepts the new slot (e.g., '1:45 PM is perfect! That gives us breathing room').
-   - Providing Preferred Time vs Selecting Specific Time vs Booking with Vague Time:
-     * If the time contains imprecise qualifiers ('around 8-ish', '7:30ish', 'sometime after 8'), classify as 'Booking with Vague Time'.
-     * If the customer selects a time from options presented by the assistant, classify as 'Selecting Specific Time'.
-     * Otherwise, direct statements of preferred dining times belong to 'Providing Preferred Time'.
-   - Generic Affirmations ('Yes', 'Okay'):
-     * If agreeing to a birthday note offer, classify as 'Requesting Birthday Note'.
-     * If agreeing to let the assistant check availability, classify as 'Acknowledging Table Check'.
-     * If confirming final reservation details, classify as 'Confirming Booking Details'.
+Customer Input: "I'd like a table for five sometime next weekend at 7 PM. One person is pescatarian."
+Output:
+{"intent": "booking", "party_size": 5, "date": null, "time": "19:00", "food_preference": ["pescatarian"]}
 
-2. Handling Multiple Intents in One Message (Composite Turns):
-   - Prioritize composite categories specifically designed to capture multi-slot turns:
-     * Date correction + celebration occasion -> 'Correcting Date & Stating Occasion'
-     * Seating preference + allergy negative confirmation -> 'Requesting Booth & Dietary Info'
-     * Headcount breakdown + high chair / stroller request -> 'Requesting High Chair & Space'
-     * Headcount clarification + power outlet / work booth -> 'Requesting Work Booth & Outlet'
-     * Date + time + guest count together -> 'Giving Date, Time & Headcount'
-     * Customer name + telephone number together -> 'Providing Name & Contact'
-   - If a customer combines agreement with a reservation modification (e.g., 'Yes, please. And actually, there will be seven people, not six'), classify according to the operational modification ('Changing Guest Count').
+Customer Input: "Can I book a table for 2 on February 31st at 8 PM? No allergies."
+Output:
+{"intent": "booking", "party_size": 2, "date": null, "time": "20:00", "food_preference": []}
 
-3. Handling Ambiguous, Vague, or Indecisive Requests:
-   - If the customer asks for 'the usual spot' or 'usual number of people' relying on past visits, classify as 'Making Ambiguous Request'.
-   - If the customer asks for a table over an indefinite weekend timeframe without day or time ('sometime this weekend'), classify as 'Inquiring About Weekend Table'.
-   - If the customer asks to hold a floating or undecided party size range ('table that seats anywhere from 8 to 12'), classify as 'Asking for Flexible Seating'.
+Customer Input: "Booking for 8 guests on Monday at 12:00 PM. We have one vegan, one celiac gluten-free, and one peanut allergy."
+Output:
+{"intent": "booking", "party_size": 8, "date": "Monday", "time": "12:00", "food_preference": ["vegan", "gluten-free", "nut-free"]}
 
-4. Handling Invalid Dates, Invalid Guest Numbers, & Absurd Requests:
-   - If a customer requests a date that does not exist on the calendar (e.g., 'February 30th', 'February 31st'), classify as 'Providing Invalid Date', overriding general booking phrasing.
-   - If a customer demonstrates weekday vs relative day confusion (e.g., 'next Monday, which is tomorrow'), classify as 'Giving Confused Date Info'.
-   - If a customer requests a table for 'zero people' (to store luggage or pets), classify as 'Asking for Zero-Guest Table'.
-   - If a customer requests a massive party size (e.g., 60 or 100 people) for same-day peak dining, classify as 'Requesting Unrealistic Guest Count'.
-   - If a customer demands physically disruptive room arrangements (e.g., pushing 10-12 tables together across the dining room), classify as 'Requesting Unreasonable Table Setup'.
-
-5. Handling Unrelated / Out-of-Scope Questions:
-   - If the customer asks about parking facilities, lots, or valet, classify as 'Asking About Parking'.
-   - If the customer asks for Wi-Fi passwords, classify as 'Asking for Wi-Fi Password'.
-   - If the customer attempts to order food delivery to a residential address, classify as 'Ordering Delivery'.
-
-6. Handling Incomplete Sentences, Slang, & Spelling Mistakes:
-   - Normalize typos, missing vowels, and grammatical errors to their intended meaning before classifying (e.g., 'tmrw evning' -> tomorrow evening, 'chnage' -> change, 'cancle' -> cancel).
-   - Map colloquial terms to their underlying formal concept ('heads' -> guests, 'bailed' -> dropped out, 'yo' -> greeting).
-   - For standalone short fragments:
-     * 'Table for 2' as an opening inquiry -> 'Initial Table Booking'
-     * 'Just two of us' as a party size response -> 'Providing Guest Count'
-     * Isolated phone digits (e.g., '9876543210') -> 'Providing Contact Information'
-     * 'Under Mark' -> 'Providing Customer Name'
-
-Output Constraints:
-1. Return exactly one intent from the allowed list.
-2. Return strictly valid JSON only.
-3. Do not include explanations, notes, markdown formatting outside JSON, or additional text.
-4. Output format:
-{
-  "intent": "intent_name"
-}
+Customer Input: "Do you offer vegan options and what time do you close this Saturday?"
+Output:
+{"intent": "inquiry", "party_size": null, "date": "Saturday", "time": null, "food_preference": ["vegan"]}
 """
 
 # ---------------------------------------------------------------------------
-# Classification & Validation Logic
+# Extraction & Validation Logic
 # ---------------------------------------------------------------------------
-def classify_intent(message: str) -> dict:
-    # 1. Resolve API Key & Provider configuration
-    groq_key = os.environ.get("GROQ_API_KEY")
-    openai_key = os.environ.get("OPENAI_API_KEY")
+def extract_booking_info(message: str) -> dict:
+    # 1. Resolve API Key configuration
+    api_key = os.environ.get("GROQ_API_KEY")
 
-    if groq_key:
-        api_key = groq_key
-        base_url = "https://api.groq.com/openai/v1"
-        preferred_model = os.environ.get("LLM_MODEL", "openai/gpt-oss-20b")
-        models_to_try = [preferred_model, "groq/compound", "qwen/qwen3.6-27b"]
-    elif openai_key and openai_key.startswith("gsk_"):
-        api_key = openai_key
-        base_url = "https://api.groq.com/openai/v1"
-        preferred_model = os.environ.get("LLM_MODEL", "openai/gpt-oss-20b")
-        models_to_try = [preferred_model, "groq/compound", "qwen/qwen3.6-27b"]
-    elif openai_key and os.environ.get("PROVIDER", "").lower() == "openai":
-        api_key = openai_key
-        base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
-        models_to_try = [os.environ.get("LLM_MODEL", "gpt-4o-mini")]
-    else:
+    if not api_key:
         return {
             "error": "GROQ_API_KEY is not set. Please set your Groq key before running:\n"
                      "  In PowerShell: $env:GROQ_API_KEY = 'gsk_your_key_here'\n"
                      "  Or create a .env file with: GROQ_API_KEY=gsk_your_key_here"
         }
+
+    base_url = "https://api.groq.com/openai/v1"
+    preferred_model = os.environ.get("LLM_MODEL", "openai/gpt-oss-20b")
+    models_to_try = [preferred_model, "groq/compound", "qwen/qwen3.6-27b"]
 
     # Deduplicate while preserving order
     seen = set()
@@ -361,8 +156,8 @@ def classify_intent(message: str) -> dict:
             except Exception:
                 err_msg = response.text
             last_error = f"API error ({response.status_code}): {err_msg}"
-            if response.status_code == 404:
-                # Model not found on this endpoint, try next candidate
+            if response.status_code in (404, 429):
+                time.sleep(1)
                 continue
             else:
                 return {"error": last_error}
@@ -370,23 +165,100 @@ def classify_intent(message: str) -> dict:
     if raw_content is None:
         return {"error": last_error or "No valid model response received."}
 
-    # 5. Parse JSON response using Python's json module
+    # 3. Parse JSON response gracefully (handling optional markdown wrapping)
+    cleaned_content = raw_content.strip()
+    if cleaned_content.startswith("```json"):
+        cleaned_content = cleaned_content[7:]
+    elif cleaned_content.startswith("```"):
+        cleaned_content = cleaned_content[3:]
+    if cleaned_content.endswith("```"):
+        cleaned_content = cleaned_content[:-3]
+    cleaned_content = cleaned_content.strip()
+
     try:
-        data = json.loads(raw_content)
+        data = json.loads(cleaned_content)
     except json.JSONDecodeError:
-        return {"error": "Failed to parse LLM response as JSON."}
+        match = re.search(r"(\{.*\})", cleaned_content, re.DOTALL)
+        if match:
+            try:
+                data = json.loads(match.group(1))
+            except json.JSONDecodeError:
+                return {"error": "Failed to parse LLM response as JSON."}
+        else:
+            return {"error": "Failed to parse LLM response as JSON."}
 
-    # 6. Validate that the 'intent' field exists
-    if not isinstance(data, dict) or "intent" not in data:
-        return {"error": "Missing 'intent' field in LLM response."}
+    # 4. Validate that data is a JSON object
+    if not isinstance(data, dict):
+        return {"error": "LLM response is not a valid JSON object."}
 
-    intent = data["intent"]
+    missing_fields = [field for field in REQUIRED_FIELDS if field not in data]
+    if missing_fields:
+        return {"error": f"Missing required field(s) in LLM response: {missing_fields}"}
 
-    # 7. Validate that the returned intent belongs to the allowed list
-    if intent not in ALLOWED_INTENTS:
-        return {"error": f"Invalid intent returned by model: '{intent}'"}
+    # 5. Strict type enforcement and sanitization
+    # intent: string
+    intent_val = data.get("intent")
+    intent_val = str(intent_val).strip() if intent_val else "booking"
 
-    return {"intent": intent}
+    # party_size: integer or null
+    party_size = data.get("party_size")
+    if party_size is not None:
+        try:
+            party_size = int(party_size)
+            if party_size <= 0:
+                party_size = None
+        except (ValueError, TypeError):
+            party_size = None
+
+    # date: string or null
+    date_val = data.get("date")
+    if date_val is not None:
+        date_val = str(date_val).strip()
+        if not date_val or date_val.lower() in ("null", "none"):
+            date_val = None
+        else:
+            # Strip leading modifier if followed by a day of the week
+            match = re.match(r"^(?:this|on|next)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$", date_val, re.IGNORECASE)
+            if match:
+                date_val = match.group(1).capitalize()
+            elif date_val.lower() in ("next weekend", "this weekend", "weekend", "next week", "sometime next week"):
+                date_val = None
+            elif re.search(r"\bfeb(?:ruary)?\s*(?:30|31)(?:st|th)?\b", date_val, re.IGNORECASE):
+                date_val = None
+
+    # time: string in 24-hour HH:MM format or null
+    time_val = data.get("time")
+    if time_val is not None:
+        time_val = str(time_val).strip()
+        if not re.match(r"^(?:[01]\d|2[0-3]):[0-5]\d$", time_val):
+            time_val = None
+
+    # food_preference: always an array of standardized strings
+    raw_food = data.get("food_preference")
+    if isinstance(raw_food, list):
+        items = [str(item).strip() for item in raw_food if item and str(item).strip()]
+    elif isinstance(raw_food, str):
+        items = [raw_food.strip()] if raw_food.strip() else []
+    else:
+        items = []
+
+    # Apply synonym normalization to canonical tags
+    normalized_food = []
+    for item in items:
+        canonical = FOOD_SYNONYMS.get(item.lower(), item.lower())
+        if canonical not in normalized_food:
+            normalized_food.append(canonical)
+
+    return {
+        "intent": intent_val,
+        "party_size": party_size,
+        "date": date_val,
+        "time": time_val,
+        "food_preference": normalized_food
+    }
+
+# Backward compatibility alias
+classify_intent = extract_booking_info
 
 # ---------------------------------------------------------------------------
 # Main CLI Entrypoint: Strictly Output Machine-Readable JSON
@@ -401,8 +273,8 @@ def main():
         print(json.dumps({"error": "Customer message cannot be empty."}))
         sys.exit(1)
 
-    result = classify_intent(customer_message)
-    print(json.dumps(result))
+    result = extract_booking_info(customer_message)
+    print(json.dumps(result, indent=4))
 
 if __name__ == "__main__":
     main()
