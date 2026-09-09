@@ -37,40 +37,41 @@ FOOD_SYNONYMS = {
 SYSTEM_PROMPT = """You are an expert Natural Language Understanding (NLU) extraction engine specialized in restaurant reservation systems. Your task is to analyze customer messages, identify their primary intent, and extract structured booking parameters.
 
 You must extract exactly the following five fields:
-1. "intent": The customer's primary objective ("booking", "inquiry", "cancellation", "modification"). If the user is requesting or asking to reserve a table, set this to "booking". If asking questions without reserving, set to "inquiry". If cancelling, set to "cancellation". If modifying an existing reservation, set to "modification".
-2. "party_size": The total number of guests as an integer. Convert word numbers to digits (e.g., "five" -> 5, "a couple" -> 2, "myself" -> 1). If unspecified, ambiguous, or zero/negative, set to null.
-3. "date": The target reservation day or date normalized:
-   - Extract canonical single day names, removing leading modifiers (e.g., "this Friday" -> "Friday", "on Saturday" -> "Saturday", "this Sunday" -> "Sunday").
-   - Relative day terms without a specific weekday: "today", "tonight", "tomorrow".
-   - Indefinite multi-day ranges (e.g., "next weekend", "sometime this week", "next week"): must be set to null.
-   - Non-existent / impossible calendar dates (e.g., "February 30th", "February 31st"): must be set to null.
-   - If unspecified or missing, set to null.
-4. "time": The reservation time standardized strictly into 24-hour "HH:MM" format (e.g., "8 PM" -> "20:00", "around 8 PM" -> "20:00", "1:30 PM" -> "13:30", "9 AM" -> "09:00", "noon" -> "12:00", "19:30" -> "19:30"). Approximate times anchored to a specific hour (e.g., "around 8 PM") should resolve to that hour ("20:00"). Only wide multi-hour intervals (e.g. "between 6 and 9 PM", "evening") or unspecified times should be set to null.
-5. "food_preference": An array of standardized dietary restriction and allergy tags mentioned in the message, even for general inquiries. Map terms to canonical tags:
+1. "intent": The customer's primary objective ("booking", "inquiry", "cancellation", "modification"). If the customer is requesting, initiating, or asking to reserve a table, classify as "booking". If asking questions without booking, classify as "inquiry". If cancelling, classify as "cancellation". If modifying an existing reservation, classify as "modification".
+2. "party_size": Total number of dining guests as an integer. Accurately interpret phrases such as "five people", "table for 5", "table for five", "party of five", "party of 5", "five of us", "a couple" (2), "just myself" (1), "two people" (2), etc. If the guest count is not explicitly mentioned, ambiguous, or non-positive (e.g. 0), set to null. Never guess or assume party size.
+3. "date": The requested booking date or day as a string:
+   - Preserve relative date expressions by extracting the canonical weekday name, stripping leading conversational modifiers: "this Saturday" -> "Saturday", "on Friday" -> "Friday", "this Sunday" -> "Sunday".
+   - Use relative day keywords when stated: "today", "tonight", "tomorrow".
+   - If the date is an indefinite multi-day period ("next weekend", "sometime this week"), an impossible calendar date ("February 30th", "February 31st"), or omitted, set to null.
+4. "time": The requested reservation time standardized strictly into 24-hour "HH:MM" format. Convert common time formats such as "8 PM", "8:00 in the evening", "8:00 PM", "20:00" -> "20:00", "7:30 PM", "7:30 in the evening" -> "19:30", "1:00 PM", "1 PM" -> "13:00", "noon", "12 PM" -> "12:00", "10:30 AM" -> "10:30", "9 AM" -> "09:00". Approximate times anchored to an hour ("around 8 PM", "8-ish") resolve to that hour ("20:00"). If time is omitted or given as a wide multi-hour window ("between 6 and 9 PM", "evening"), set to null.
+5. "food_preference": An array of dietary requirements, allergies, or culinary preferences explicitly mentioned by the customer (e.g., "vegetarian", "vegan", "halal", "kosher", "gluten-free", "dairy-free", "nut-free", "pescatarian"). Standardize allergen terms into canonical tags:
    - Peanut / tree nut allergy -> "nut-free"
    - Celiac / gluten allergy -> "gluten-free"
    - Lactose intolerant / dairy allergy -> "dairy-free"
-   - Vegetarian -> "vegetarian"
-   - Vegan -> "vegan"
-   - Halal -> "halal"
-   - Kosher -> "kosher"
-   - Pescatarian -> "pescatarian"
-   If no dietary preferences are mentioned, this must be an empty array [].
+   If no dietary preferences are explicitly stated, return an empty array []. Never guess food preferences.
 
-Strict Extraction and Normalization Rules:
-- All five fields ("intent", "party_size", "date", "time", "food_preference") must always be present in the output JSON.
-- Never omit a key. Use null when an entity cannot be determined, except for food_preference which must always be an array ([] if none).
-- Distinguish between numbers denoting party size and numbers denoting time or dietary counts (e.g., in "table for five at 8 PM, one person is vegetarian", party_size is 5, not 1 or 8).
-- In case of inline user corrections, prioritize the latest corrected value.
-- Robustly handle natural conversational variations, colloquial phrasing, informal slang, and minor typos or grammatical errors.
-- Never invent information not provided in the customer message.
-- Return raw JSON only. Do not enclose the output in markdown code fences. Do not include any explanations, greetings, or extra text.
+Strict Operational & Anti-Hallucination Rules:
+- Extract ONLY information explicitly mentioned by the customer. Never guess, assume, or invent details.
+- Handle multiple pieces of information packed into a single sentence (e.g., "I'd like a table for five this Saturday at 8 PM. One person is vegetarian." -> party_size: 5, date: "Saturday", time: "20:00", food_preference: ["vegetarian"]).
+- Handle natural conversational wording, informal slang ("me and 7 buddies" -> 8), and typos ("tbl for 3 peopel tommorow" -> party_size: 3, date: "tomorrow").
+- Distinguish party size numbers from times or dietary headcounts (e.g. in "table for five at 8 PM, one person is vegetarian", party_size is 5, not 1 or 8).
+- For mid-sentence self-corrections ("table for 4... make that 6"), use the latest revised value.
+- All five fields ("intent", "party_size", "date", "time", "food_preference") must always be present in the output JSON. Never change field names or omit keys.
+- Return strictly valid raw JSON only. Do not wrap in markdown code blocks (no ```json). Do not include any explanations, greetings, or extra text.
 
 Examples:
 
 Customer Input: "I'd like a table for five this Saturday at 8 PM. One person is vegetarian."
 Output:
 {"intent": "booking", "party_size": 5, "date": "Saturday", "time": "20:00", "food_preference": ["vegetarian"]}
+
+Customer Input: "Can we reserve a table for 5 people this Saturday at 8:00 in the evening? Two of us are vegan."
+Output:
+{"intent": "booking", "party_size": 5, "date": "Saturday", "time": "20:00", "food_preference": ["vegan"]}
+
+Customer Input: "Party of five for tomorrow at 20:00, no dietary requirements."
+Output:
+{"intent": "booking", "party_size": 5, "date": "tomorrow", "time": "20:00", "food_preference": []}
 
 Customer Input: "Can we reserve a booth for four this Friday evening? We'll drop by sometime between 6 and 9 PM."
 Output:
@@ -134,7 +135,8 @@ def extract_booking_info(message: str) -> dict:
                         {"role": "user", "content": f"Customer message:\n\n{message}"}
                     ],
                     "response_format": {"type": "json_object"},
-                    "temperature": 0.0
+                    "temperature": 0.0,
+                    "max_tokens": 500
                 },
                 timeout=30
             )
@@ -195,29 +197,32 @@ def extract_booking_info(message: str) -> dict:
     if missing_fields:
         return {"error": f"Missing required field(s) in LLM response: {missing_fields}"}
 
-    # 5. Strict type enforcement and sanitization
-    # intent: string
+    # 5. Lightweight validation & strict type enforcement in Python
+    # 5.1. intent: must exist as a string
     intent_val = data.get("intent")
-    intent_val = str(intent_val).strip() if intent_val else "booking"
+    if intent_val is not None and str(intent_val).strip():
+        intent_val = str(intent_val).strip().lower()
+    else:
+        intent_val = "booking"
 
-    # party_size: integer or null
+    # 5.2. party_size: must be an integer when provided, or null
     party_size = data.get("party_size")
     if party_size is not None:
         try:
-            party_size = int(party_size)
+            party_size = int(float(party_size))
             if party_size <= 0:
                 party_size = None
         except (ValueError, TypeError):
             party_size = None
 
-    # date: string or null
+    # 5.3. date: must be a string when provided, or null
     date_val = data.get("date")
     if date_val is not None:
         date_val = str(date_val).strip()
         if not date_val or date_val.lower() in ("null", "none"):
             date_val = None
         else:
-            # Strip leading modifier if followed by a day of the week
+            # Strip leading conversational modifier if followed by a day of the week
             match = re.match(r"^(?:this|on|next)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$", date_val, re.IGNORECASE)
             if match:
                 date_val = match.group(1).capitalize()
@@ -226,14 +231,27 @@ def extract_booking_info(message: str) -> dict:
             elif re.search(r"\bfeb(?:ruary)?\s*(?:30|31)(?:st|th)?\b", date_val, re.IGNORECASE):
                 date_val = None
 
-    # time: string in 24-hour HH:MM format or null
+    # 5.4. time: must follow 24-hour HH:MM format when provided, or null
     time_val = data.get("time")
     if time_val is not None:
         time_val = str(time_val).strip()
         if not re.match(r"^(?:[01]\d|2[0-3]):[0-5]\d$", time_val):
-            time_val = None
+            # Lightweight fallback: normalize 12-hour conversational time (e.g. "8 PM", "8:30 PM", "8:00 in the evening")
+            match_12h = re.match(r"^(\d{1,2})(?::(\d{2}))?\s*(?:in the evening|in the afternoon|in the morning)?\s*(am|pm)?$", time_val, re.IGNORECASE)
+            if match_12h:
+                h = int(match_12h.group(1))
+                m = int(match_12h.group(2) or 0)
+                meridiem = (match_12h.group(3) or "").lower()
+                is_evening = "evening" in time_val.lower() or "pm" in time_val.lower()
+                if (is_evening or meridiem == "pm") and h < 12:
+                    h += 12
+                elif (not is_evening and meridiem == "am") and h == 12:
+                    h = 0
+                time_val = f"{h:02d}:{m:02d}"
+            else:
+                time_val = None
 
-    # food_preference: always an array of standardized strings
+    # 5.5. food_preference: must be a list of strings
     raw_food = data.get("food_preference")
     if isinstance(raw_food, list):
         items = [str(item).strip() for item in raw_food if item and str(item).strip()]

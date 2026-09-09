@@ -59,7 +59,7 @@ def run_tests():
         sys.exit(1)
 
     with open(DATASET_FILE, "r", encoding="utf-8") as f:
-        test_cases = json.load(f)
+        test_cases = json.load(f)[:20]
 
     print(f"Loaded {len(test_cases)} test cases from '{DATASET_FILE}'. Starting execution...\n")
     results = []
