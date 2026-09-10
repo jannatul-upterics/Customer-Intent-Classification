@@ -1,0 +1,492 @@
+[
+  {
+    "conversation_id": "CONV-001",
+    "title": "Step-by-Step Information Gathering",
+    "primary_focus": "Information provided step by step",
+    "turns": [
+      {
+        "turn_id": 1,
+        "customer_message": "Good afternoon! I'd like to reserve a table for four, please.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 4,
+          "date": null,
+          "time": null,
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 2,
+        "customer_message": "We are planning to come in this Friday.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 4,
+          "date": "Friday",
+          "time": null,
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 3,
+        "customer_message": "Around 7:30 PM would be ideal.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 4,
+          "date": "Friday",
+          "time": "19:30",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 4,
+        "customer_message": "Just so you know, one of our guests is strictly gluten-free.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 4,
+          "date": "Friday",
+          "time": "19:30",
+          "food_preference": [
+            "gluten-free"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-002",
+    "title": "Birthday Dinner Guest Count Increase",
+    "primary_focus": "Changing guest count",
+    "turns": [
+      {
+        "turn_id": 1,
+        "customer_message": "Hey there, looking to get a table for a party of 8 this Saturday at 8 PM for a birthday celebration.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 8,
+          "date": "Saturday",
+          "time": "20:00",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 2,
+        "customer_message": "Actually, two more friends just confirmed they can make it, so make that 10 people.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 10,
+          "date": "Saturday",
+          "time": "20:00",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 3,
+        "customer_message": "Also, one person in the group requires halal food.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 10,
+          "date": "Saturday",
+          "time": "20:00",
+          "food_preference": [
+            "halal"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-003",
+    "title": "Work Shift Date Reschedule",
+    "primary_focus": "Changing date",
+    "turns": [
+      {
+        "turn_id": 1,
+        "customer_message": "Hi, can I book a table for two this Thursday at 8:00 in the evening?",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 2,
+          "date": "Thursday",
+          "time": "20:00",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 2,
+        "customer_message": "Ah wait, my partner has a late work shift on Thursday. Can we change the date to Friday instead? Same time.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 2,
+          "date": "Friday",
+          "time": "20:00",
+          "food_preference": []
+        }
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-004",
+    "title": "Rush Hour Traffic Delay",
+    "primary_focus": "Changing time",
+    "turns": [
+      {
+        "turn_id": 1,
+        "customer_message": "Could we reserve a table for 5 people tomorrow at 6:30 PM?",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 5,
+          "date": "tomorrow",
+          "time": "18:30",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 2,
+        "customer_message": "Actually, with evening rush hour traffic, 6:30 is too tight. Could you push the time back to 8:00 PM?",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 5,
+          "date": "tomorrow",
+          "time": "20:00",
+          "food_preference": []
+        }
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-005",
+    "title": "Colleague Dietary Needs Remembered Sequentially",
+    "primary_focus": "Adding a dietary requirement",
+    "turns": [
+      {
+        "turn_id": 1,
+        "customer_message": "I'd like to book a booth for 3 people this Sunday at 1:00 PM.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 3,
+          "date": "Sunday",
+          "time": "13:00",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 2,
+        "customer_message": "Oh, almost forgot! My colleague has a severe peanut allergy.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 3,
+          "date": "Sunday",
+          "time": "13:00",
+          "food_preference": [
+            "nut-free"
+          ]
+        }
+      },
+      {
+        "turn_id": 3,
+        "customer_message": "And another colleague is vegetarian.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 3,
+          "date": "Sunday",
+          "time": "13:00",
+          "food_preference": [
+            "nut-free",
+            "vegetarian"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-006",
+    "title": "Dropping Guest Food Restriction",
+    "primary_focus": "Removing a dietary requirement",
+    "turns": [
+      {
+        "turn_id": 1,
+        "customer_message": "Can I reserve a table for 4 this Wednesday at 7 PM? Two of our guests are dairy-free.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 4,
+          "date": "Wednesday",
+          "time": "19:00",
+          "food_preference": [
+            "dairy-free"
+          ]
+        }
+      },
+      {
+        "turn_id": 2,
+        "customer_message": "Actually, scratch that - the dairy-free guests aren't coming anymore, so no dietary requirements for the table.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 4,
+          "date": "Wednesday",
+          "time": "19:00",
+          "food_preference": []
+        }
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-007",
+    "title": "Couples Dinner Piece-by-Piece Assembly",
+    "primary_focus": "Adding new information while keeping old information",
+    "turns": [
+      {
+        "turn_id": 1,
+        "customer_message": "Just myself and my husband want to come in.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 2,
+          "date": null,
+          "time": null,
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 2,
+        "customer_message": "We are looking at tonight.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 2,
+          "date": "tonight",
+          "time": null,
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 3,
+        "customer_message": "Is 9:00 PM open?",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 2,
+          "date": "tonight",
+          "time": "21:00",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 4,
+        "customer_message": "We're both kosher diners.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 2,
+          "date": "tonight",
+          "time": "21:00",
+          "food_preference": [
+            "kosher"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-008",
+    "title": "Evolving Group Plans Across Multiple Turns",
+    "primary_focus": "Multiple changes in the same conversation",
+    "turns": [
+      {
+        "turn_id": 1,
+        "customer_message": "Table for 4 on Thursday at 7 PM, please.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 4,
+          "date": "Thursday",
+          "time": "19:00",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 2,
+        "customer_message": "Actually, can we move it to 8:30 PM?",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 4,
+          "date": "Thursday",
+          "time": "20:30",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 3,
+        "customer_message": "Wait, two more people want to join. Make that 6 people instead.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 6,
+          "date": "Thursday",
+          "time": "20:30",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 4,
+        "customer_message": "Also, could we change the day to Friday? Thursday no longer works for us.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 6,
+          "date": "Friday",
+          "time": "20:30",
+          "food_preference": []
+        }
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-009",
+    "title": "Casual Slang with Colloquial Revisions",
+    "primary_focus": "An ambiguous/conversational correction",
+    "turns": [
+      {
+        "turn_id": 1,
+        "customer_message": "Hey mate, gonna need a spot for me and 3 buddies.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 4,
+          "date": null,
+          "time": null,
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 2,
+        "customer_message": "This Saturday, let's say around 8ish in the evening.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 4,
+          "date": "Saturday",
+          "time": "20:00",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 3,
+        "customer_message": "Ah scrap that time, make it an hour earlier instead.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 4,
+          "date": "Saturday",
+          "time": "19:00",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 4,
+        "customer_message": "Actually wait, Dave dropped out so just 3 of us now.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 3,
+          "date": "Saturday",
+          "time": "19:00",
+          "food_preference": []
+        }
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-010",
+    "title": "Abandoning Booking for Takeout Inquiries",
+    "primary_focus": "Changing the customer's intention",
+    "turns": [
+      {
+        "turn_id": 1,
+        "customer_message": "Hi, I'd like to book a table for 6 this Sunday at 12:30 PM.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 6,
+          "date": "Sunday",
+          "time": "12:30",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 2,
+        "customer_message": "Actually, we decided to eat at home instead so I don't want to book anymore. Do you offer takeout catering boxes?",
+        "expected_state": {
+          "intent": "inquiry",
+          "party_size": 6,
+          "date": "Sunday",
+          "time": "12:30",
+          "food_preference": []
+        }
+      },
+      {
+        "turn_id": 3,
+        "customer_message": "Got it, thanks. Please cancel any booking request under my name.",
+        "expected_state": {
+          "intent": "cancellation",
+          "party_size": 6,
+          "date": "Sunday",
+          "time": "12:30",
+          "food_preference": []
+        }
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-011",
+    "title": "Dietary Substitution from Vegetarian to Vegan",
+    "primary_focus": "Dietary substitution vs addition",
+    "turns": [
+      {
+        "turn_id": 1,
+        "customer_message": "Can we book a table for 2 people tomorrow at 7:00 PM? One person is vegetarian.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 2,
+          "date": "tomorrow",
+          "time": "19:00",
+          "food_preference": [
+            "vegetarian"
+          ]
+        }
+      },
+      {
+        "turn_id": 2,
+        "customer_message": "Actually, make it vegan instead of vegetarian.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 2,
+          "date": "tomorrow",
+          "time": "19:00",
+          "food_preference": [
+            "vegan"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-012",
+    "title": "Comprehensive Multi-Parameter Overhaul",
+    "primary_focus": "Multiple simultaneous parameter updates",
+    "turns": [
+      {
+        "turn_id": 1,
+        "customer_message": "I need a reservation for 5 guests on Monday at 6:00 PM. One person has celiac disease so needs gluten-free.",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 5,
+          "date": "Monday",
+          "time": "18:00",
+          "food_preference": [
+            "gluten-free"
+          ]
+        }
+      },
+      {
+        "turn_id": 2,
+        "customer_message": "Sorry, our schedule completely changed! Could we make it 8 guests at 8:00 PM on Tuesday instead?",
+        "expected_state": {
+          "intent": "booking",
+          "party_size": 8,
+          "date": "Tuesday",
+          "time": "20:00",
+          "food_preference": [
+            "gluten-free"
+          ]
+        }
+      }
+    ]
+  }
+]
