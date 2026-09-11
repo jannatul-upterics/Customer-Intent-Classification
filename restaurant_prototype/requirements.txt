@@ -1,0 +1,2 @@
+# Python dependencies for the restaurant prototype
+# (Currently standard library only; can add openai / requests / python-dotenv when connecting to an LLM)

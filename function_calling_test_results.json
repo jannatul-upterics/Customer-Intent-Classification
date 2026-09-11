@@ -1,0 +1,229 @@
+{
+  "total_test_cases": 10,
+  "passed": 10,
+  "failed": 0,
+  "accuracy_pct": 100.0,
+  "test_cases": [
+    {
+      "id": "TC-001",
+      "name": "Customer asks about availability",
+      "turns": [
+        "Can you check if you have an open table for 5 people this Friday at 7:30 PM?"
+      ],
+      "expected_function": "check_availability",
+      "expected_arguments": {
+        "date": "Friday",
+        "time": "19:30",
+        "party_size": 5
+      },
+      "actual_function": "check_availability",
+      "actual_arguments": {
+        "time": "19:30",
+        "party_size": 5,
+        "number_of_guests": 5,
+        "date": "Friday"
+      },
+      "summary": "The customer requested to check availability for a table for 5 people this Friday at 7:30 PM.",
+      "status": "PASS",
+      "final_response": "Great news! We do have a table available for 5 guests this Friday at 7:30 PM.\n\nWould you like me to go ahead and book it for you? If so, please provide your name for the reservation."
+    },
+    {
+      "id": "TC-002",
+      "name": "Customer wants to create a new booking",
+      "turns": [
+        "I'd like to book a table for 2 guests under Sarah Jenkins for tomorrow at 8:00 PM, please."
+      ],
+      "expected_function": "create_booking",
+      "expected_arguments": {
+        "customer_name": "Sarah Jenkins",
+        "date": "tomorrow",
+        "time": "20:00",
+        "party_size": 2
+      },
+      "actual_function": "create_booking",
+      "actual_arguments": {
+        "time": "20:00",
+        "party_size": 2,
+        "number_of_guests": 2,
+        "customer_name": "Sarah Jenkins",
+        "date": "tomorrow"
+      },
+      "summary": "The customer requested to create a booking for 2 guests under the name Sarah Jenkins for tomorrow at 8:00 PM.",
+      "status": "PASS",
+      "final_response": "Your table for two under Sarah Jenkins is confirmed for tomorrow at 8:00 PM. Your booking ID is BK-3973."
+    },
+    {
+      "id": "TC-003",
+      "name": "Customer modifies the number of guests",
+      "turns": [
+        "Hello, could we change the party size for reservation BK-2041 to 6 people?"
+      ],
+      "expected_function": "modify_booking",
+      "expected_arguments": {
+        "booking_id": "BK-2041",
+        "new_party_size": 6
+      },
+      "actual_function": "modify_booking",
+      "actual_arguments": {
+        "new_party_size": 6,
+        "new_number_of_guests": 6,
+        "booking_id": "BK-2041"
+      },
+      "summary": "The customer requested to modify reservation BK-2041 by changing the party size to 6 people.",
+      "status": "PASS",
+      "final_response": "Great news! I’ve updated reservation **BK-2041** to accommodate **6 guests**. Is there anything else you’d like to adjust?"
+    },
+    {
+      "id": "TC-004",
+      "name": "Customer modifies the date",
+      "turns": [
+        "Hi, I have a reservation with ID ABC789. Can we move it to Sunday instead?"
+      ],
+      "expected_function": "modify_booking",
+      "expected_arguments": {
+        "booking_id": "ABC789",
+        "new_date": "Sunday"
+      },
+      "actual_function": "modify_booking",
+      "actual_arguments": {
+        "new_date": "Sunday",
+        "booking_id": "ABC789"
+      },
+      "summary": "The customer requested to modify the reservation with ID ABC789, moving it to Sunday. The final confirmed parameters are new_date “Sunday” and booking_id “ABC789”.",
+      "status": "PASS",
+      "final_response": "Your reservation has been successfully moved to Sunday. If you’d like to adjust the time or party size, just let me know and I’ll update it for you! Enjoy your dining experience."
+    },
+    {
+      "id": "TC-005",
+      "name": "Customer modifies the time",
+      "turns": [
+        "Regarding booking BK-4092, could we push our reservation time back to 9:00 PM?"
+      ],
+      "expected_function": "modify_booking",
+      "expected_arguments": {
+        "booking_id": "BK-4092",
+        "new_time": "21:00"
+      },
+      "actual_function": "modify_booking",
+      "actual_arguments": {
+        "new_time": "21:00",
+        "booking_id": "BK-4092"
+      },
+      "summary": "The customer requested to modify booking BK-4092 by changing the reservation time to 9:00 PM.",
+      "status": "PASS",
+      "final_response": "Your reservation BK‑4092 has been updated successfully – it’s now set for 9:00 PM. Let us know if there’s anything else we can arrange for you!"
+    },
+    {
+      "id": "TC-006",
+      "name": "Customer cancels an existing booking",
+      "turns": [
+        "Hi, we unfortunately won't be able to make it tonight. Please cancel booking BK-8812."
+      ],
+      "expected_function": "cancel_booking",
+      "expected_arguments": {
+        "booking_id": "BK-8812"
+      },
+      "actual_function": "cancel_booking",
+      "actual_arguments": {
+        "booking_id": "BK-8812"
+      },
+      "summary": "The customer requested to cancel reservation BK-8812.",
+      "status": "PASS",
+      "final_response": "Your reservation BK‑8812 has been successfully cancelled. If you need anything else or would like to make a new booking, just let me know!"
+    },
+    {
+      "id": "TC-007",
+      "name": "Customer provides booking information over multiple messages",
+      "turns": [
+        "Hi, I'd like to reserve a table for an anniversary dinner.",
+        "There will be 2 of us this Saturday at 7 PM.",
+        "Please confirm the reservation under David Miller."
+      ],
+      "expected_function": "create_booking",
+      "expected_arguments": {
+        "customer_name": "David Miller",
+        "date": "Saturday",
+        "time": "19:00",
+        "party_size": 2
+      },
+      "actual_function": "create_booking",
+      "actual_arguments": {
+        "time": "19:00",
+        "party_size": 2,
+        "number_of_guests": 2,
+        "customer_name": "David Miller",
+        "date": "Saturday"
+      },
+      "summary": "The customer requested to create a reservation for an anniversary dinner for 2 guests this Saturday at 7 PM under the name David Miller.",
+      "status": "PASS",
+      "final_response": "Your anniversary dinner is confirmed! 🥂\n\n- **Name:** David Miller  \n- **Date:** Saturday  \n- **Time:** 7:00 PM  \n- **Party size:** 2  \n- **Booking ID:** BK-9858  \n\nPlease keep the booking ID handy in case you need to modify or cancel the reservation. Wishing you a wonderful anniversary!"
+    },
+    {
+      "id": "TC-008",
+      "name": "Customer changes previously provided information and then asks for availability",
+      "turns": [
+        "Do you have space for 4 people on Friday at 8 PM?",
+        "Actually, two more friends are joining us, make it 6 people instead.",
+        "Is a table available for that?"
+      ],
+      "expected_function": "check_availability",
+      "expected_arguments": {
+        "date": "Friday",
+        "time": "20:00",
+        "party_size": 6
+      },
+      "actual_function": "check_availability",
+      "actual_arguments": {
+        "time": "20:00",
+        "party_size": 6,
+        "number_of_guests": 6,
+        "date": "Friday"
+      },
+      "summary": "The customer asked to check availability for a table for 6 people on Friday at 8 PM; the party size was originally 4 but was increased to 6.",
+      "status": "PASS",
+      "final_response": "Great news—there is a table for 6 available on Friday at 20:00. May I have your name to confirm the reservation?"
+    },
+    {
+      "id": "TC-009",
+      "name": "Customer uses informal/conversational wording",
+      "turns": [
+        "Hey! Me and 3 buddies wanna grab dinner tomorrow around 8-ish in the evening. Got room for us?"
+      ],
+      "expected_function": "check_availability",
+      "expected_arguments": {
+        "date": "tomorrow",
+        "time": "20:00",
+        "party_size": 4
+      },
+      "actual_function": "check_availability",
+      "actual_arguments": {
+        "time": "20:00",
+        "party_size": 4,
+        "number_of_guests": 4,
+        "date": "tomorrow"
+      },
+      "summary": "The customer is checking availability for a dinner reservation for a party of 4 tomorrow at 8:00 PM.",
+      "status": "PASS",
+      "final_response": "Great news! We have a table available for 4 guests tomorrow at 8:00 PM.\n\nWould you like me to go ahead and book it for you? If so, please let me know your name."
+    },
+    {
+      "id": "TC-010",
+      "name": "Customer changes their intention during the conversation",
+      "turns": [
+        "Hi, I have reservation BK-5521 and I wanted to change it to 5 people.",
+        "Actually, never mind changing it, our plans fell through completely. Please cancel the booking."
+      ],
+      "expected_function": "cancel_booking",
+      "expected_arguments": {
+        "booking_id": "BK-5521"
+      },
+      "actual_function": "cancel_booking",
+      "actual_arguments": {
+        "booking_id": "BK-5521"
+      },
+      "summary": "The customer initially requested to modify reservation BK-5521 to a party of 5, but subsequently changed their intent to cancel the booking entirely due to plans falling through.",
+      "status": "PASS",
+      "final_response": "Your reservation **BK-5521** has been successfully cancelled. If you need anything else, just let me know!"
+    }
+  ]
+}

@@ -60,20 +60,29 @@ class BookingState:
         self.date: Optional[str] = None
         self.time: Optional[str] = None
         self.food_preference: List[str] = []
+        self.customer_name: Optional[str] = None
+        self.booking_id: Optional[str] = None
         self.history: List[Dict[str, Any]] = []
+        self.conversation_messages: List[Dict[str, str]] = []
 
         if initial_state:
             self.load_from_dict(initial_state)
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Returns the canonical 5-field state dictionary."""
-        return {
+    def to_dict(self, include_metadata: bool = False) -> Dict[str, Any]:
+        """Returns the canonical 5-field state dictionary (or with metadata if requested)."""
+        d = {
             "intent": self.intent,
             "party_size": self.party_size,
             "date": self.date,
             "time": self.time,
             "food_preference": list(self.food_preference)
         }
+        if include_metadata:
+            if getattr(self, "customer_name", None):
+                d["customer_name"] = self.customer_name
+            if getattr(self, "booking_id", None):
+                d["booking_id"] = self.booking_id
+        return d
 
     def reset(self) -> Dict[str, Any]:
         """Resets all fields to their initial defaults and clears history."""
@@ -82,7 +91,10 @@ class BookingState:
         self.date = None
         self.time = None
         self.food_preference = []
+        self.customer_name = None
+        self.booking_id = None
         self.history = []
+        self.conversation_messages = []
         return self.to_dict()
 
     def set_field(self, field: str, value: Any) -> None:
@@ -104,6 +116,10 @@ class BookingState:
             self.date = str(value).strip() if value else None
         elif field == "time":
             self.time = str(value).strip() if value else None
+        elif field == "customer_name":
+            self.customer_name = str(value).strip() if value else None
+        elif field == "booking_id":
+            self.booking_id = str(value).strip() if value else None
         elif field == "food_preference":
             if isinstance(value, list):
                 self.food_preference = [str(x).strip().lower() for x in value if x]
@@ -120,7 +136,7 @@ class BookingState:
         """
         if field == "food_preference":
             self.food_preference = []
-        elif field in ("party_size", "date", "time"):
+        elif field in ("party_size", "date", "time", "customer_name", "booking_id"):
             setattr(self, field, None)
         elif field == "intent":
             self.intent = "booking"
@@ -148,6 +164,10 @@ class BookingState:
             self.set_field("date", data["date"])
         if "time" in data:
             self.set_field("time", data["time"])
+        if "customer_name" in data:
+            self.set_field("customer_name", data["customer_name"])
+        if "booking_id" in data:
+            self.set_field("booking_id", data["booking_id"])
         if "food_preference" in data:
             self.set_field("food_preference", data["food_preference"])
 
@@ -304,6 +324,86 @@ class BookingState:
             from intent_classifier import extract_booking_info
             extracted = extract_booking_info(message)
             return self.apply_extraction(extracted, message=message)
+
+    def process_turn(self, message: str, preferred_model: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Integrates multi-turn conversation context/state management with LLM Function Calling:
+        1. Updates internal booking state using process_message(message).
+        2. Detects explicit customer name mentions if provided.
+        3. Invokes the Function Calling engine with conversation messages and accumulated state.
+        4. Synchronizes state with any function execution outcomes (e.g. booking ID on creation).
+        5. Saves dialogue turns into conversation history.
+        6. Returns structured turn summary including state, function called, arguments, and final response.
+        """
+        # 1. Update accumulated state
+        self.process_message(message)
+
+        # Detect customer name if stated (e.g. "My name is Jannatul", "under Jannatul")
+        if not getattr(self, "customer_name", None):
+            name_match = re.search(r"\b(?:my name is|name is|i am|i'm|under(?:\s+the\s+name)?)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\b", message, re.IGNORECASE)
+            if name_match:
+                self.set_field("customer_name", name_match.group(1).strip())
+
+        # Detect booking ID if stated (e.g. "booking ABC123", "reservation BK-2041", "ID ABC789")
+        if not getattr(self, "booking_id", None):
+            id_match = re.search(r"\b(?:booking|reservation|id)\s*[:#]?\s*([A-Za-z0-9\-_]{5,10})\b", message, re.IGNORECASE)
+            if id_match:
+                self.set_field("booking_id", id_match.group(1).strip())
+
+        # 2. Invoke function calling engine with context and current state
+        from function_caller import process_customer_request
+        history = list(self.conversation_messages) if hasattr(self, "conversation_messages") else []
+
+        turn_result = process_customer_request(
+            customer_message=message,
+            conversation_history=history,
+            current_state=self.to_dict(include_metadata=True),
+            state_history=self.history,
+            preferred_model=preferred_model
+        )
+
+        fn_called = turn_result.get("function_called")
+        fn_res = turn_result.get("function_result") or {}
+        fn_args = turn_result.get("arguments", {})
+
+        # 3. Synchronize state with function execution results
+        if fn_called == "create_booking" and fn_res.get("success"):
+            if "booking_id" in fn_res:
+                self.set_field("booking_id", fn_res["booking_id"])
+            if fn_args.get("customer_name"):
+                self.set_field("customer_name", fn_args["customer_name"])
+            self.set_field("intent", "booking")
+        elif fn_called == "modify_booking" and fn_res.get("success"):
+            if fn_args.get("booking_id"):
+                self.set_field("booking_id", fn_args["booking_id"])
+            if fn_args.get("new_party_size"):
+                self.set_field("party_size", fn_args["new_party_size"])
+            if fn_args.get("new_date"):
+                self.set_field("date", fn_args["new_date"])
+            if fn_args.get("new_time"):
+                self.set_field("time", fn_args["new_time"])
+            self.set_field("intent", "modification")
+        elif fn_called == "cancel_booking" and fn_res.get("success"):
+            self.set_field("intent", "cancellation")
+
+        # 4. Save to conversational history
+        if not hasattr(self, "conversation_messages"):
+            self.conversation_messages = []
+        self.conversation_messages.append({"role": "user", "content": message})
+        final_resp = turn_result.get("final_response", "")
+        self.conversation_messages.append({"role": "assistant", "content": final_resp})
+
+        return {
+            "customer_message": message,
+            "state": self.to_dict(include_metadata=True),
+            "function": fn_called,
+            "function_called": fn_called,
+            "arguments": fn_args,
+            "summary": turn_result.get("summary", ""),
+            "function_result": fn_res,
+            "final_response": final_resp,
+            "status": turn_result.get("status")
+        }
 
     def __repr__(self) -> str:
         return f"<BookingState {self.to_dict()}>"
