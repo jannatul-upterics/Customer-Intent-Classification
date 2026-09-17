@@ -62,7 +62,7 @@ def test_user_multiturn_example():
     assert final_json["function"] == "check_availability", f"Expected check_availability, got {final_json['function']}"
     args = final_json["arguments"]
     assert args.get("party_size") == 6, f"Expected party_size 6, got {args.get('party_size')}"
-    assert "saturday" in str(args.get("date")).lower(), f"Expected Saturday date, got {args.get('date')}"
+    assert "saturday" in str(args.get("date")).lower() or "2026-09-19" in str(args.get("date")), f"Expected Saturday date, got {args.get('date')}"
     assert "20:00" in str(args.get("time")), f"Expected time 20:00, got {args.get('time')}"
 
     summary = final_json["summary"]

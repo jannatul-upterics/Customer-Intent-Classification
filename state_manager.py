@@ -30,6 +30,22 @@ FOOD_REMOVAL_PATTERNS = [
     r"\bno\s+food\s+restrictions?\b"
 ]
 
+SEATING_REMOVAL_PATTERNS = [
+    r"\b(?:no|cancel|remove|clear|never\s*mind)\s+(?:the\s+)?(?:seating|seat|seats|table|window|booth)\b",
+    r"\bany\s+(?:table|seat|seating)\s+is\s+(?:fine|good|okay)\b",
+    r"\bdon't\s+care\s+(?:about\s+)?(?:where\s+we\s+sit|seating)\b"
+]
+
+ACCESSIBILITY_REMOVAL_PATTERNS = [
+    r"\b(?:no|cancel|remove|clear|never\s*mind|don't\s+need|do\s+not\s+need)\s+(?:the\s+)?(?:accessibility|wheelchair|wheelchair\s+access|high\s*chair|stroller)\b",
+    r"\bno\s+accessibility\s+needs?\b"
+]
+
+CELEBRATION_REMOVAL_PATTERNS = [
+    r"\b(?:no|cancel|remove|clear|never\s*mind)\s+(?:the\s+)?(?:birthday|anniversary|celebration)\b",
+    r"\bnot\s+a\s+special\s+occasion\b"
+]
+
 DATE_REMOVAL_PATTERNS = [
     r"\b(?:cancel|remove|clear)\s+(?:the\s+)?date\b",
     r"\bnever\s*mind\s+(?:the\s+)?date\b",
@@ -59,7 +75,11 @@ class BookingState:
         self.party_size: Optional[int] = None
         self.date: Optional[str] = None
         self.time: Optional[str] = None
-        self.food_preference: List[str] = []
+        self.food_preference: Any = []
+        self.seating_preference: Dict[str, Any] = {}
+        self.accessibility_requirement: Dict[str, Any] = {}
+        self.celebration_requirement: Dict[str, Any] = {}
+        self.other_preferences: Dict[str, Any] = {}
         self.customer_name: Optional[str] = None
         self.booking_id: Optional[str] = None
         self.history: List[Dict[str, Any]] = []
@@ -69,14 +89,23 @@ class BookingState:
             self.load_from_dict(initial_state)
 
     def to_dict(self, include_metadata: bool = False) -> Dict[str, Any]:
-        """Returns the canonical 5-field state dictionary (or with metadata if requested)."""
+        """Returns the canonical state dictionary (or with metadata if requested)."""
         d = {
             "intent": self.intent,
             "party_size": self.party_size,
             "date": self.date,
             "time": self.time,
-            "food_preference": list(self.food_preference)
+            "food_preference": dict(self.food_preference) if isinstance(self.food_preference, dict) else list(self.food_preference)
         }
+        if self.seating_preference:
+            d["seating_preference"] = dict(self.seating_preference)
+        if self.accessibility_requirement:
+            d["accessibility_requirement"] = dict(self.accessibility_requirement)
+        if self.celebration_requirement:
+            d["celebration_requirement"] = dict(self.celebration_requirement)
+        for k, v in getattr(self, "other_preferences", {}).items():
+            if v:
+                d[k] = dict(v) if isinstance(v, dict) else v
         if include_metadata:
             if getattr(self, "customer_name", None):
                 d["customer_name"] = self.customer_name
@@ -91,6 +120,10 @@ class BookingState:
         self.date = None
         self.time = None
         self.food_preference = []
+        self.seating_preference = {}
+        self.accessibility_requirement = {}
+        self.celebration_requirement = {}
+        self.other_preferences = {}
         self.customer_name = None
         self.booking_id = None
         self.history = []
@@ -121,12 +154,24 @@ class BookingState:
         elif field == "booking_id":
             self.booking_id = str(value).strip() if value else None
         elif field == "food_preference":
-            if isinstance(value, list):
+            if isinstance(value, dict):
+                self.food_preference = dict(value)
+            elif isinstance(value, list):
                 self.food_preference = [str(x).strip().lower() for x in value if x]
             elif isinstance(value, str):
                 self.food_preference = [value.strip().lower()] if value.strip() else []
             else:
-                self.food_preference = []
+                self.food_preference = {}
+        elif field == "seating_preference":
+            self.seating_preference = dict(value) if isinstance(value, dict) else {}
+        elif field == "accessibility_requirement":
+            self.accessibility_requirement = dict(value) if isinstance(value, dict) else {}
+        elif field == "celebration_requirement":
+            self.celebration_requirement = dict(value) if isinstance(value, dict) else {}
+        elif field.endswith("_preference") or field.endswith("_requirement"):
+            if not hasattr(self, "other_preferences"):
+                self.other_preferences = {}
+            self.other_preferences[field] = dict(value) if isinstance(value, dict) else value
         else:
             raise KeyError(f"Unknown state field: '{field}'")
 
@@ -135,7 +180,15 @@ class BookingState:
         Removes / clears a specific field from the state.
         """
         if field == "food_preference":
-            self.food_preference = []
+            self.food_preference = {} if isinstance(self.food_preference, dict) else []
+        elif field == "seating_preference":
+            self.seating_preference = {}
+        elif field == "accessibility_requirement":
+            self.accessibility_requirement = {}
+        elif field == "celebration_requirement":
+            self.celebration_requirement = {}
+        elif hasattr(self, "other_preferences") and field in self.other_preferences:
+            del self.other_preferences[field]
         elif field in ("party_size", "date", "time", "customer_name", "booking_id"):
             setattr(self, field, None)
         elif field == "intent":
@@ -149,27 +202,28 @@ class BookingState:
         Returns True if removed, False otherwise.
         """
         normalized = item.strip().lower()
-        if normalized in self.food_preference:
-            self.food_preference.remove(normalized)
-            return True
+        if isinstance(self.food_preference, dict):
+            if normalized in self.food_preference:
+                del self.food_preference[normalized]
+                return True
+        elif isinstance(self.food_preference, list):
+            if normalized in self.food_preference:
+                self.food_preference.remove(normalized)
+                return True
         return False
 
     def load_from_dict(self, data: Dict[str, Any]) -> None:
         """Loads state from an existing dictionary."""
-        if "intent" in data:
-            self.set_field("intent", data["intent"])
-        if "party_size" in data:
-            self.set_field("party_size", data["party_size"])
-        if "date" in data:
-            self.set_field("date", data["date"])
-        if "time" in data:
-            self.set_field("time", data["time"])
-        if "customer_name" in data:
-            self.set_field("customer_name", data["customer_name"])
-        if "booking_id" in data:
-            self.set_field("booking_id", data["booking_id"])
-        if "food_preference" in data:
-            self.set_field("food_preference", data["food_preference"])
+        for field in ("intent", "party_size", "date", "time", "customer_name", "booking_id",
+                      "food_preference", "seating_preference", "accessibility_requirement",
+                      "celebration_requirement"):
+            if field in data:
+                self.set_field(field, data[field])
+        for k, v in data.items():
+            if (k.endswith("_preference") or k.endswith("_requirement")) and k not in (
+                "food_preference", "seating_preference", "accessibility_requirement", "celebration_requirement"
+            ):
+                self.set_field(k, v)
 
     def _check_negation_removals(self, message: str) -> None:
         """Inspects customer message for conversational removal signals."""
@@ -178,7 +232,25 @@ class BookingState:
         # Food preference removal check
         for pattern in FOOD_REMOVAL_PATTERNS:
             if re.search(pattern, msg_lower, re.IGNORECASE):
-                self.food_preference = []
+                self.food_preference = {} if isinstance(self.food_preference, dict) else []
+                break
+
+        # Seating preference removal check
+        for pattern in SEATING_REMOVAL_PATTERNS:
+            if re.search(pattern, msg_lower, re.IGNORECASE):
+                self.seating_preference = {}
+                break
+
+        # Accessibility requirement removal check
+        for pattern in ACCESSIBILITY_REMOVAL_PATTERNS:
+            if re.search(pattern, msg_lower, re.IGNORECASE):
+                self.accessibility_requirement = {}
+                break
+
+        # Celebration requirement removal check
+        for pattern in CELEBRATION_REMOVAL_PATTERNS:
+            if re.search(pattern, msg_lower, re.IGNORECASE):
+                self.celebration_requirement = {}
                 break
 
         # Date removal check
@@ -208,8 +280,9 @@ class BookingState:
         2. Party size: Overwrites if newly provided (non-null), otherwise keeps existing.
         3. Date: Overwrites if newly provided (non-null), otherwise keeps existing.
         4. Time: Overwrites if newly provided (non-null), otherwise keeps existing.
-        5. Food preference: Appends new unique tags if provided.
+        5. Food preference: Updates preference dictionary with exact person counts.
         6. Removals: If the message requests removing/clearing fields, resets them.
+        7. Recalculates/validates preference counts against latest party_size.
         """
         if not isinstance(extracted, dict):
             return self.to_dict()
@@ -258,9 +331,9 @@ class BookingState:
                     r"\b(?:just|only)\s+(?:\d+|one|two|three|four|five|six)\s*(?:people|guests|of\s+us)?\b"
                 ]
                 has_explicit_party_change = any(re.search(p, msg_lower) for p in explicit_party_patterns)
-                is_dietary_mention = bool(re.search(r"\b(?:colleague|friend|partner|spouse|guest|someone|person|one)\b.*\b(?:vegetarian|vegan|allergy|allergic|gluten|celiac|nut|peanut|dairy|lactose|halal|kosher|pescatarian|diet)\b", msg_lower))
+                is_preference_mention = bool(re.search(r"\b(?:colleague|friend|partner|spouse|guest|someone|person|one|two|three|four|five|six)\b.*\b(?:vegetarian|vegan|allergy|allergic|gluten|celiac|nut|peanut|dairy|lactose|halal|kosher|pescatarian|diet|wheelchair|window|booth|seating|access|high\s*chair)\b", msg_lower))
 
-                if has_explicit_party_change and not (is_dietary_mention and not re.search(r"\b(?:make\s+it|change\s+to|switch\s+to)\s+\d+\b", msg_lower)):
+                if has_explicit_party_change and not (is_preference_mention and not re.search(r"\b(?:make\s+it|change\s+to|switch\s+to)\s+\d+\b", msg_lower)):
                     self.party_size = new_party_size
                 # otherwise preserve current party_size
             else:
@@ -276,9 +349,11 @@ class BookingState:
         if new_time is not None:
             self.time = new_time
 
-        # 6. Update food preference (handle substitution vs addition)
+        # 6. Update food preference (handle dict with counts or list)
         new_food = extracted.get("food_preference")
-        if isinstance(new_food, list):
+        if isinstance(new_food, dict):
+            self.food_preference = dict(new_food)
+        elif isinstance(new_food, list):
             msg_lower = message.lower() if message else ""
             is_replacement = bool(re.search(r"\b(?:actually|instead|change(?:\s+it|\s+that)?\s+to|make it|rather than)\b", msg_lower))
             is_addition = bool(re.search(r"\b(?:also|and|in addition|another|as well|plus|both)\b", msg_lower))
@@ -287,10 +362,49 @@ class BookingState:
                 # Substitute/replace previous preferences
                 self.food_preference = [str(x).strip().lower() for x in new_food if x and str(x).strip()]
             elif new_food:
-                for item in new_food:
-                    tag = str(item).strip().lower()
-                    if tag and tag not in self.food_preference:
-                        self.food_preference.append(tag)
+                if isinstance(self.food_preference, list):
+                    for item in new_food:
+                        tag = str(item).strip().lower()
+                        if tag and tag not in self.food_preference:
+                            self.food_preference.append(tag)
+                else:
+                    self.food_preference = [str(x).strip().lower() for x in new_food if x and str(x).strip()]
+
+        # 7. Update other preference fields
+        if "seating_preference" in extracted and isinstance(extracted["seating_preference"], dict):
+            self.seating_preference = dict(extracted["seating_preference"])
+        if "accessibility_requirement" in extracted and isinstance(extracted["accessibility_requirement"], dict):
+            self.accessibility_requirement = dict(extracted["accessibility_requirement"])
+        if "celebration_requirement" in extracted and isinstance(extracted["celebration_requirement"], dict):
+            self.celebration_requirement = dict(extracted["celebration_requirement"])
+        for k, v in extracted.items():
+            if (k.endswith("_preference") or k.endswith("_requirement")) and k not in (
+                "food_preference", "seating_preference", "accessibility_requirement", "celebration_requirement"
+            ):
+                if not hasattr(self, "other_preferences"):
+                    self.other_preferences = {}
+                self.other_preferences[k] = dict(v) if isinstance(v, dict) else v
+
+        # 8. Re-validate preference counts against party size (Rule 10)
+        if self.party_size is not None:
+            if isinstance(self.food_preference, dict) and self.food_preference:
+                for k, v in list(self.food_preference.items()):
+                    if isinstance(v, int) and v > self.party_size:
+                        self.food_preference[k] = self.party_size
+                restricted_count = sum(
+                    v for k, v in self.food_preference.items()
+                    if k != "non_vegetarian" and isinstance(v, int)
+                )
+                if restricted_count > 0:
+                    if restricted_count >= self.party_size:
+                        self.food_preference.pop("non_vegetarian", None)
+                    else:
+                        self.food_preference["non_vegetarian"] = self.party_size - restricted_count
+            for pref_dict in (self.seating_preference, self.accessibility_requirement, self.celebration_requirement):
+                if isinstance(pref_dict, dict):
+                    for k, v in list(pref_dict.items()):
+                        if isinstance(v, int) and v > self.party_size:
+                            pref_dict[k] = self.party_size
 
         # Record this turn into history
         if message:

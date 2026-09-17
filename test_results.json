@@ -5,20 +5,22 @@
         "expected": {
             "intent": "booking",
             "party_size": 5,
-            "date": "Saturday",
+            "date": "2026-09-19",
             "time": "20:00",
-            "food_preference": [
-                "vegetarian"
-            ]
+            "food_preference": {
+                "vegetarian": 1,
+                "non_vegetarian": 4
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 5,
-            "date": "Saturday",
+            "date": "2026-09-19",
             "time": "20:00",
-            "food_preference": [
-                "vegetarian"
-            ]
+            "food_preference": {
+                "vegetarian": 1,
+                "non_vegetarian": 4
+            }
         },
         "result": "PASS"
     },
@@ -28,22 +30,24 @@
         "expected": {
             "intent": "booking",
             "party_size": 4,
-            "date": "Friday",
+            "date": "2026-09-18",
             "time": "19:30",
-            "food_preference": [
-                "vegan",
-                "gluten-free"
-            ]
+            "food_preference": {
+                "vegan": 2,
+                "gluten-free": 1,
+                "non_vegetarian": 1
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 4,
-            "date": "Friday",
+            "date": "2026-09-18",
             "time": "19:30",
-            "food_preference": [
-                "vegan",
-                "gluten-free"
-            ]
+            "food_preference": {
+                "vegan": 2,
+                "gluten-free": 1,
+                "non_vegetarian": 1
+            }
         },
         "result": "PASS"
     },
@@ -53,16 +57,21 @@
         "expected": {
             "intent": "booking",
             "party_size": 1,
-            "date": "tomorrow",
+            "date": "2026-09-18",
             "time": "13:00",
-            "food_preference": []
+            "food_preference": {},
+            "seating_preference": {
+                "quiet": 1
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 1,
-            "date": "tomorrow",
+            "date": "2026-09-18",
             "time": "13:00",
-            "food_preference": []
+            "seating_preference": {
+                "quiet": 1
+            }
         },
         "result": "PASS"
     },
@@ -72,20 +81,20 @@
         "expected": {
             "intent": "booking",
             "party_size": 2,
-            "date": "tonight",
+            "date": "2026-09-17",
             "time": "20:30",
-            "food_preference": [
-                "halal"
-            ]
+            "food_preference": {
+                "halal": 2
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 2,
-            "date": "tonight",
+            "date": "2026-09-17",
             "time": "20:30",
-            "food_preference": [
-                "halal"
-            ]
+            "food_preference": {
+                "halal": 2
+            }
         },
         "result": "PASS"
     },
@@ -95,16 +104,15 @@
         "expected": {
             "intent": "booking",
             "party_size": 6,
-            "date": "Sunday",
+            "date": "2026-09-20",
             "time": null,
-            "food_preference": []
+            "food_preference": {}
         },
         "actual": {
             "intent": "booking",
             "party_size": 6,
-            "date": "Sunday",
-            "time": null,
-            "food_preference": []
+            "date": "2026-09-20",
+            "time": null
         },
         "result": "PASS"
     },
@@ -114,20 +122,20 @@
         "expected": {
             "intent": "booking",
             "party_size": null,
-            "date": "tomorrow",
+            "date": "2026-09-18",
             "time": "19:00",
-            "food_preference": [
-                "dairy-free"
-            ]
+            "food_preference": {
+                "dairy-free": 1
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": null,
-            "date": "tomorrow",
+            "date": "2026-09-18",
             "time": "19:00",
-            "food_preference": [
-                "dairy-free"
-            ]
+            "food_preference": {
+                "dairy-free": 1
+            }
         },
         "result": "PASS"
     },
@@ -139,14 +147,13 @@
             "party_size": 3,
             "date": null,
             "time": "18:45",
-            "food_preference": []
+            "food_preference": {}
         },
         "actual": {
             "intent": "booking",
             "party_size": 3,
             "date": null,
-            "time": "18:45",
-            "food_preference": []
+            "time": "18:45"
         },
         "result": "PASS"
     },
@@ -156,20 +163,22 @@
         "expected": {
             "intent": "booking",
             "party_size": 3,
-            "date": "tomorrow",
+            "date": "2026-09-18",
             "time": "21:00",
-            "food_preference": [
-                "vegetarian"
-            ]
+            "food_preference": {
+                "vegetarian": 1,
+                "non_vegetarian": 2
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 3,
-            "date": "tomorrow",
+            "date": "2026-09-18",
             "time": "21:00",
-            "food_preference": [
-                "vegetarian"
-            ]
+            "food_preference": {
+                "vegetarian": 1,
+                "non_vegetarian": 2
+            }
         },
         "result": "PASS"
     },
@@ -179,20 +188,20 @@
         "expected": {
             "intent": "booking",
             "party_size": 8,
-            "date": "Thursday",
+            "date": "2026-09-17",
             "time": "20:00",
-            "food_preference": [
-                "halal"
-            ]
+            "food_preference": {
+                "halal": 8
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 8,
-            "date": "Thursday",
+            "date": "2026-09-17",
             "time": "20:00",
-            "food_preference": [
-                "halal"
-            ]
+            "food_preference": {
+                "halal": 8
+            }
         },
         "result": "PASS"
     },
@@ -202,20 +211,28 @@
         "expected": {
             "intent": "booking",
             "party_size": 4,
-            "date": "Wednesday",
+            "date": "2026-09-16",
             "time": "19:00",
-            "food_preference": [
-                "nut-free"
-            ]
+            "food_preference": {
+                "nut-free": 1,
+                "non_vegetarian": 3
+            },
+            "accessibility_requirement": {
+                "high_chair": null
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 4,
-            "date": "Wednesday",
+            "date": "2026-09-16",
             "time": "19:00",
-            "food_preference": [
-                "nut-free"
-            ]
+            "food_preference": {
+                "nut-free": 1,
+                "non_vegetarian": 3
+            },
+            "accessibility_requirement": {
+                "high_chair": null
+            }
         },
         "result": "PASS"
     },
@@ -225,16 +242,15 @@
         "expected": {
             "intent": "booking",
             "party_size": 6,
-            "date": "Saturday",
+            "date": "2026-09-19",
             "time": "20:00",
-            "food_preference": []
+            "food_preference": {}
         },
         "actual": {
             "intent": "booking",
             "party_size": 6,
-            "date": "Saturday",
-            "time": "20:00",
-            "food_preference": []
+            "date": "2026-09-19",
+            "time": "20:00"
         },
         "result": "PASS"
     },
@@ -244,20 +260,22 @@
         "expected": {
             "intent": "booking",
             "party_size": 2,
-            "date": "Friday",
+            "date": "2026-09-18",
             "time": "18:30",
-            "food_preference": [
-                "vegetarian"
-            ]
+            "food_preference": {
+                "vegetarian": 1,
+                "non_vegetarian": 1
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 2,
-            "date": "Friday",
+            "date": "2026-09-18",
             "time": "18:30",
-            "food_preference": [
-                "vegetarian"
-            ]
+            "food_preference": {
+                "vegetarian": 1,
+                "non_vegetarian": 1
+            }
         },
         "result": "PASS"
     },
@@ -267,20 +285,22 @@
         "expected": {
             "intent": "booking",
             "party_size": 3,
-            "date": "Sunday",
+            "date": "2026-09-20",
             "time": "10:30",
-            "food_preference": [
-                "kosher"
-            ]
+            "food_preference": {
+                "kosher": 2,
+                "non_vegetarian": 1
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 3,
-            "date": "Sunday",
+            "date": "2026-09-20",
             "time": "10:30",
-            "food_preference": [
-                "kosher"
-            ]
+            "food_preference": {
+                "kosher": 2,
+                "non_vegetarian": 1
+            }
         },
         "result": "PASS"
     },
@@ -290,16 +310,21 @@
         "expected": {
             "intent": "booking",
             "party_size": 4,
-            "date": "Friday",
+            "date": "2026-09-18",
             "time": null,
-            "food_preference": []
+            "food_preference": {},
+            "seating_preference": {
+                "booth": 4
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 4,
-            "date": "Friday",
+            "date": "2026-09-18",
             "time": null,
-            "food_preference": []
+            "seating_preference": {
+                "booth": 4
+            }
         },
         "result": "PASS"
     },
@@ -311,18 +336,20 @@
             "party_size": 5,
             "date": null,
             "time": "19:00",
-            "food_preference": [
-                "pescatarian"
-            ]
+            "food_preference": {
+                "pescatarian": 1,
+                "non_vegetarian": 4
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 5,
             "date": null,
             "time": "19:00",
-            "food_preference": [
-                "pescatarian"
-            ]
+            "food_preference": {
+                "pescatarian": 1,
+                "non_vegetarian": 4
+            }
         },
         "result": "PASS"
     },
@@ -334,14 +361,13 @@
             "party_size": 2,
             "date": null,
             "time": "20:00",
-            "food_preference": []
+            "food_preference": {}
         },
         "actual": {
             "intent": "booking",
             "party_size": 2,
             "date": null,
-            "time": "20:00",
-            "food_preference": []
+            "time": "20:00"
         },
         "result": "PASS"
     },
@@ -351,20 +377,20 @@
         "expected": {
             "intent": "booking",
             "party_size": 150,
-            "date": "tomorrow",
+            "date": "2026-09-18",
             "time": "18:00",
-            "food_preference": [
-                "vegetarian"
-            ]
+            "food_preference": {
+                "vegetarian": null
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 150,
-            "date": "tomorrow",
+            "date": "2026-09-18",
             "time": "18:00",
-            "food_preference": [
-                "vegetarian"
-            ]
+            "food_preference": {
+                "vegetarian": null
+            }
         },
         "result": "PASS"
     },
@@ -374,16 +400,15 @@
         "expected": {
             "intent": "booking",
             "party_size": null,
-            "date": "Saturday",
+            "date": "2026-09-19",
             "time": "20:00",
-            "food_preference": []
+            "food_preference": {}
         },
         "actual": {
             "intent": "booking",
             "party_size": null,
-            "date": "Saturday",
-            "time": "20:00",
-            "food_preference": []
+            "date": "2026-09-19",
+            "time": "20:00"
         },
         "result": "PASS"
     },
@@ -393,24 +418,26 @@
         "expected": {
             "intent": "booking",
             "party_size": 8,
-            "date": "Monday",
+            "date": "2026-09-21",
             "time": "12:00",
-            "food_preference": [
-                "vegan",
-                "gluten-free",
-                "nut-free"
-            ]
+            "food_preference": {
+                "vegan": 1,
+                "gluten-free": 1,
+                "nut-free": 1,
+                "non_vegetarian": 5
+            }
         },
         "actual": {
             "intent": "booking",
             "party_size": 8,
-            "date": "Monday",
+            "date": "2026-09-21",
             "time": "12:00",
-            "food_preference": [
-                "vegan",
-                "gluten-free",
-                "nut-free"
-            ]
+            "food_preference": {
+                "vegan": 1,
+                "gluten-free": 1,
+                "nut-free": 1,
+                "non_vegetarian": 5
+            }
         },
         "result": "PASS"
     },
@@ -420,16 +447,15 @@
         "expected": {
             "intent": "cancellation",
             "party_size": 4,
-            "date": "Friday",
+            "date": "2026-09-18",
             "time": "20:00",
-            "food_preference": []
+            "food_preference": {}
         },
         "actual": {
             "intent": "cancellation",
             "party_size": 4,
-            "date": "Friday",
-            "time": "20:00",
-            "food_preference": []
+            "date": "2026-09-18",
+            "time": "20:00"
         },
         "result": "PASS"
     }

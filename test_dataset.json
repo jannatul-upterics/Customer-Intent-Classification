@@ -5,11 +5,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 5,
-      "date": "Saturday",
+      "date": "2026-09-19",
       "time": "20:00",
-      "food_preference": [
-        "vegetarian"
-      ]
+      "food_preference": {
+        "vegetarian": 1,
+        "non_vegetarian": 4
+      }
     }
   },
   {
@@ -18,12 +19,13 @@
     "expected": {
       "intent": "booking",
       "party_size": 4,
-      "date": "Friday",
+      "date": "2026-09-18",
       "time": "19:30",
-      "food_preference": [
-        "vegan",
-        "gluten-free"
-      ]
+      "food_preference": {
+        "vegan": 2,
+        "gluten-free": 1,
+        "non_vegetarian": 1
+      }
     }
   },
   {
@@ -32,9 +34,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 1,
-      "date": "tomorrow",
+      "date": "2026-09-18",
       "time": "13:00",
-      "food_preference": []
+      "food_preference": {},
+      "seating_preference": {
+        "quiet": 1
+      }
     }
   },
   {
@@ -43,11 +48,11 @@
     "expected": {
       "intent": "booking",
       "party_size": 2,
-      "date": "tonight",
+      "date": "2026-09-17",
       "time": "20:30",
-      "food_preference": [
-        "halal"
-      ]
+      "food_preference": {
+        "halal": 2
+      }
     }
   },
   {
@@ -56,9 +61,9 @@
     "expected": {
       "intent": "booking",
       "party_size": 6,
-      "date": "Sunday",
+      "date": "2026-09-20",
       "time": null,
-      "food_preference": []
+      "food_preference": {}
     }
   },
   {
@@ -67,11 +72,11 @@
     "expected": {
       "intent": "booking",
       "party_size": null,
-      "date": "tomorrow",
+      "date": "2026-09-18",
       "time": "19:00",
-      "food_preference": [
-        "dairy-free"
-      ]
+      "food_preference": {
+        "dairy-free": 1
+      }
     }
   },
   {
@@ -82,7 +87,7 @@
       "party_size": 3,
       "date": null,
       "time": "18:45",
-      "food_preference": []
+      "food_preference": {}
     }
   },
   {
@@ -91,11 +96,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 3,
-      "date": "tomorrow",
+      "date": "2026-09-18",
       "time": "21:00",
-      "food_preference": [
-        "vegetarian"
-      ]
+      "food_preference": {
+        "vegetarian": 1,
+        "non_vegetarian": 2
+      }
     }
   },
   {
@@ -104,11 +110,11 @@
     "expected": {
       "intent": "booking",
       "party_size": 8,
-      "date": "Thursday",
+      "date": "2026-09-17",
       "time": "20:00",
-      "food_preference": [
-        "halal"
-      ]
+      "food_preference": {
+        "halal": 8
+      }
     }
   },
   {
@@ -117,11 +123,15 @@
     "expected": {
       "intent": "booking",
       "party_size": 4,
-      "date": "Wednesday",
+      "date": "2026-09-16",
       "time": "19:00",
-      "food_preference": [
-        "nut-free"
-      ]
+      "food_preference": {
+        "nut-free": 1,
+        "non_vegetarian": 3
+      },
+      "accessibility_requirement": {
+        "high_chair": null
+      }
     }
   },
   {
@@ -130,9 +140,9 @@
     "expected": {
       "intent": "booking",
       "party_size": 6,
-      "date": "Saturday",
+      "date": "2026-09-19",
       "time": "20:00",
-      "food_preference": []
+      "food_preference": {}
     }
   },
   {
@@ -141,11 +151,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 2,
-      "date": "Friday",
+      "date": "2026-09-18",
       "time": "18:30",
-      "food_preference": [
-        "vegetarian"
-      ]
+      "food_preference": {
+        "vegetarian": 1,
+        "non_vegetarian": 1
+      }
     }
   },
   {
@@ -154,11 +165,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 3,
-      "date": "Sunday",
+      "date": "2026-09-20",
       "time": "10:30",
-      "food_preference": [
-        "kosher"
-      ]
+      "food_preference": {
+        "kosher": 2,
+        "non_vegetarian": 1
+      }
     }
   },
   {
@@ -167,9 +179,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 4,
-      "date": "Friday",
+      "date": "2026-09-18",
       "time": null,
-      "food_preference": []
+      "food_preference": {},
+      "seating_preference": {
+        "booth": 4
+      }
     }
   },
   {
@@ -180,9 +195,10 @@
       "party_size": 5,
       "date": null,
       "time": "19:00",
-      "food_preference": [
-        "pescatarian"
-      ]
+      "food_preference": {
+        "pescatarian": 1,
+        "non_vegetarian": 4
+      }
     }
   },
   {
@@ -193,7 +209,7 @@
       "party_size": 2,
       "date": null,
       "time": "20:00",
-      "food_preference": []
+      "food_preference": {}
     }
   },
   {
@@ -202,11 +218,11 @@
     "expected": {
       "intent": "booking",
       "party_size": 150,
-      "date": "tomorrow",
+      "date": "2026-09-18",
       "time": "18:00",
-      "food_preference": [
-        "vegetarian"
-      ]
+      "food_preference": {
+        "vegetarian": null
+      }
     }
   },
   {
@@ -215,9 +231,9 @@
     "expected": {
       "intent": "booking",
       "party_size": null,
-      "date": "Saturday",
+      "date": "2026-09-19",
       "time": "20:00",
-      "food_preference": []
+      "food_preference": {}
     }
   },
   {
@@ -226,13 +242,14 @@
     "expected": {
       "intent": "booking",
       "party_size": 8,
-      "date": "Monday",
+      "date": "2026-09-21",
       "time": "12:00",
-      "food_preference": [
-        "vegan",
-        "gluten-free",
-        "nut-free"
-      ]
+      "food_preference": {
+        "vegan": 1,
+        "gluten-free": 1,
+        "nut-free": 1,
+        "non_vegetarian": 5
+      }
     }
   },
   {
@@ -241,9 +258,9 @@
     "expected": {
       "intent": "cancellation",
       "party_size": 4,
-      "date": "Friday",
+      "date": "2026-09-18",
       "time": "20:00",
-      "food_preference": []
+      "food_preference": {}
     }
   },
   {
@@ -252,9 +269,9 @@
     "expected": {
       "intent": "modification",
       "party_size": 2,
-      "date": "tomorrow",
+      "date": "2026-09-18",
       "time": "21:00",
-      "food_preference": []
+      "food_preference": {}
     }
   },
   {
@@ -263,11 +280,11 @@
     "expected": {
       "intent": "inquiry",
       "party_size": null,
-      "date": "Saturday",
+      "date": "2026-09-19",
       "time": null,
-      "food_preference": [
-        "vegan"
-      ]
+      "food_preference": {
+        "vegan": null
+      }
     }
   },
   {
@@ -276,11 +293,15 @@
     "expected": {
       "intent": "booking",
       "party_size": 10,
-      "date": "Saturday",
+      "date": "2026-09-19",
       "time": "20:00",
-      "food_preference": [
-        "vegetarian"
-      ]
+      "food_preference": {
+        "vegetarian": 3,
+        "non_vegetarian": 7
+      },
+      "celebration_requirement": {
+        "graduation": 10
+      }
     }
   },
   {
@@ -289,11 +310,11 @@
     "expected": {
       "intent": "booking",
       "party_size": 2,
-      "date": "Tuesday",
+      "date": "2026-09-15",
       "time": "12:00",
-      "food_preference": [
-        "halal"
-      ]
+      "food_preference": {
+        "halal": 2
+      }
     }
   },
   {
@@ -304,7 +325,7 @@
       "party_size": null,
       "date": null,
       "time": null,
-      "food_preference": []
+      "food_preference": {}
     }
   }
 ]

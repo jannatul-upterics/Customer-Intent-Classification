@@ -9,12 +9,13 @@ RESULTS_FILE = "test_results.json"
 
 def compare_results(actual: dict, expected: dict) -> bool:
     """
-    Compares the actual output with the expected output across all 5 fields:
+    Compares the actual output with the expected output across all fields:
     - intent
     - party_size
     - date
     - time
-    - food_preference
+    - food_preference (exact person count dictionary)
+    - auxiliary preferences (seating_preference, accessibility_requirement, celebration_requirement, etc.)
     """
     if not isinstance(actual, dict):
         return False
@@ -45,11 +46,28 @@ def compare_results(actual: dict, expected: dict) -> bool:
     if actual_time != expected_time:
         return False
 
-    # 5. food_preference comparison (normalized list of tags, order-agnostic)
-    actual_food = [str(x).strip().lower() for x in (actual.get("food_preference") or [])]
-    expected_food = [str(x).strip().lower() for x in (expected.get("food_preference") or [])]
-    if sorted(actual_food) != sorted(expected_food):
+    # 5. food_preference comparison (exact count dictionary or list fallback)
+    actual_food = actual.get("food_preference") or {}
+    expected_food = expected.get("food_preference") or {}
+    if isinstance(actual_food, list):
+        actual_food = {str(x).strip().lower(): 1 for x in actual_food}
+    if isinstance(expected_food, list):
+        expected_food = {str(x).strip().lower(): 1 for x in expected_food}
+    if actual_food != expected_food:
         return False
+
+    # 6. auxiliary preferences comparison (seating, accessibility, celebration, etc.)
+    all_pref_keys = set(
+        k for k in list(expected.keys()) + list(actual.keys())
+        if k.endswith("_preference") or k.endswith("_requirement") or "preference" in k or "requirement" in k
+    )
+    for pref_key in all_pref_keys:
+        if pref_key == "food_preference":
+            continue
+        actual_pref = actual.get(pref_key) or {}
+        expected_pref = expected.get(pref_key) or {}
+        if actual_pref != expected_pref:
+            return False
 
     return True
 
@@ -77,9 +95,9 @@ def run_tests():
         actual = None
         for attempt in range(max_retries):
             actual = extract_booking_info(input_msg)
-            if "error" in actual and ("429" in str(actual["error"]) or "rate limit" in str(actual["error"]).lower()):
-                wait_sec = 5 * (attempt + 1)
-                print(f"(Rate limit, waiting {wait_sec}s, retry {attempt + 1})...", end=" ", flush=True)
+            if "error" in actual and any(err_kw in str(actual["error"]).lower() for err_kw in ("429", "rate limit", "400", "connection error")):
+                wait_sec = 2 * (attempt + 1)
+                print(f"(API retry, waiting {wait_sec}s, retry {attempt + 1})...", end=" ", flush=True)
                 time.sleep(wait_sec)
                 continue
             break

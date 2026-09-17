@@ -11,7 +11,7 @@ What started as an intent classifier has grown into a full reservation assistant
 When a customer messages the restaurant, the system:
 1. **Identifies what they want:** Categorizes their goal into booking, cancellation, modification, or a general question.
 2. **Pulls out key booking details:** Extracts guest count, date, time, and dietary preferences.
-3. **Normalizes messy inputs:** Turns words into numbers (*"five"* $\rightarrow `5`$), converts colloquial times to 24-hour format (*"8 PM"* $\rightarrow `"20:00"`$), and maps allergy descriptions to clean tags.
+3. **Normalizes messy inputs:** Turns words into numbers ("five" → `5`), converts colloquial times to 24-hour format ("8 PM" → `20:00`), and maps allergy descriptions to clean tags.
 4. **Remembers context:** Keeps track of details across multiple turns so customers can change party sizes, add requirements, or ask questions naturally.
 5. **Outputs clean JSON:** Delivers validated JSON with no extra conversational fluff or markdown formatting.
 
@@ -28,17 +28,19 @@ I'd like a table for five this Saturday at 8 PM. One person is vegetarian.
 ```
 
 ### Output
-The system outputs a valid JSON object containing exactly five fields:
+The system outputs a valid JSON object containing the reservation details, customer preferences with exact person counts, and conversation summary:
 
 ```json
 {
   "intent": "booking",
   "party_size": 5,
-  "date": "Saturday",
+  "date": "2026-09-19",
   "time": "20:00",
-  "food_preference": [
-    "vegetarian"
-  ]
+  "food_preference": {
+    "vegetarian": 1,
+    "non_vegetarian": 4
+  },
+  "summary": "The customer wants a table for 5 people this Saturday at 8 PM, with 1 vegetarian guest."
 }
 ```
 
@@ -50,9 +52,12 @@ The system outputs a valid JSON object containing exactly five fields:
 | :--- | :--- | :---: | :--- |
 | **`intent`** | `string` | No | What the customer is trying to do (`"booking"`, `"inquiry"`, `"cancellation"`, or `"modification"`). Used to route the conversation. |
 | **`party_size`** | `integer` | Yes | Total number of dining guests. Converted from words to integer digits. Set to `null` if unspecified, ambiguous, or zero. |
-| **`date`** | `string` | Yes | Target reservation day (capitalized weekday such as `"Saturday"`) or relative day (`"today"`, `"tomorrow"`, `"tonight"`). Set to `null` if unspecified or invalid. |
+| **`date`** | `string` | Yes | Target reservation date normalized strictly into `"YYYY-MM-DD"` format (e.g., `"2026-09-21"`). Set to `null` if unspecified, ambiguous, or invalid. |
 | **`time`** | `string` | Yes | Target reservation time strictly in 24-hour `"HH:MM"` format (e.g., `"20:00"`, `"12:30"`). Set to `null` if unspecified or an imprecise wide range. |
-| **`food_preference`** | `array[string]` | No | List of normalized dietary requirements or food allergies (e.g., `["vegan", "gluten-free"]`). Always returned as an array, defaulting to `[]` when none are mentioned. |
+| **`food_preference`** | `object` | No | Object mapping normalized dietary requirements or food allergies to exact person counts (e.g., `{"vegetarian": 1, "non_vegetarian": 4}`). Defaults to `{}` when none are mentioned. |
+| **`summary`** | `string` | No | Concise natural-language summary of the conversation and confirmed reservation details. |
+
+*(Note: Additional customer preferences mentioned in the request, such as `seating_preference` or `accessibility_requirement`, are also captured as structured objects with exact person counts, e.g. `{"window": 2}`, `{"wheelchair_access": 1}`).*
 
 ---
 
@@ -60,13 +65,42 @@ The system outputs a valid JSON object containing exactly five fields:
 
 The extraction engine (`intent_classifier.py`) applies practical normalization rules to handle real-world speech:
 
-* **Party Size:** Converts words to numbers (*"five"* $\rightarrow `5`$, *"a couple"* $\rightarrow `2`$, *"myself"* $\rightarrow `1`$). Unrealistic or non-dining counts (like zero people) resolve to `null`.
-* **24-Hour Time Conversion:** Converts 12-hour AM/PM and casual times (*"8 PM"* $\rightarrow `"20:00"`$, *"noon"* $\rightarrow `"12:00"`$, *"10:30 AM"* $\rightarrow `"10:30"`$). Single approximate times (*"around 8 PM"*) resolve to that hour (`"20:00"`). Vague time windows (*"between 6 and 9 PM"*, *"evening"*) resolve to `null`.
-* **Date Normalization:** Cleans up weekday names and strips leading filler words (*"this Friday"* $\rightarrow `"Friday"`$, *"on Saturday"* $\rightarrow `"Saturday"`). Vague multi-day periods (*"next weekend"*, *"sometime next week"*) or non-existent dates (*"February 31st"*) are safely set to `null`.
-* **Dietary Tag Canonicalization:** Standardizes casual phrasing and medical terms into clean operational tags (*"peanut allergy"* $\rightarrow `"nut-free"`$, *"celiac"* $\rightarrow `"gluten-free"`$, *"lactose intolerant"* $\rightarrow `"dairy-free"`$). Always outputs a JSON array, defaulting to `[]` if no preferences were mentioned.
-* **Missing Details:** If a customer doesn't specify a field, it cleanly defaults to `null` for `party_size`, `date`, and `time`, and `[]` for `food_preference`.
-* **Handling Slang & Typos:** Robustly handles casual expressions (*"me and 7 buddies"* $\rightarrow `8`$) and common typos (*"tbl for 3 peopel tommorow"*).
-* **Mid-Sentence Self-Corrections:** Automatically catches when a user corrects themselves in a single breath (*"table for 4... actually make that 6"* $\rightarrow `6`$; *"Thursday, sorry I meant Friday"* $\rightarrow `"Friday"`).
+* **Party Size:** Converts words to numbers ("five" → `5`, "a couple" → `2`, "myself" → `1`). Unrealistic or non-dining counts (like zero people) resolve to `null`.
+* **24-Hour Time Conversion:** Converts 12-hour AM/PM and casual times ("8 PM" → `20:00`, "noon" → `12:00`, "10:30 AM" → `10:30`). Single approximate times ("around 8 PM") resolve to that hour (`20:00`). Vague time windows ("between 6 and 9 PM", "evening") resolve to `null`.
+* **Date Normalization & Calendar Date Resolution (`YYYY-MM-DD`):** Converts relative date expressions, weekdays, and explicit dates into a specific calendar date formatted as `YYYY-MM-DD`. The calculation is determined dynamically using the current/runtime date at the time of execution rather than a hard-coded date:
+  * **Date Handling:** Resolves expressions such as:
+    * Monday, Tuesday, Wednesday, etc.
+    * "this Monday"
+    * "next Monday"
+    * "tomorrow"
+    * "day after tomorrow"
+    * Explicit calendar dates such as "25 September" (e.g. "25 September" → `2026-09-25`)
+    
+    The final `date` value is normalized strictly to `YYYY-MM-DD`. Indefinite periods ("this weekend", "sometime next week") or non-existent dates ("February 31st") safely resolve to `null`.
+  * **Extraction Output Example:**
+    ```text
+    Customer: "I want a table for 4 people on Monday at 8 PM."
+    ```
+    The extracted output contains:
+    ```json
+    {
+      "party_size": 4,
+      "date": "2026-09-21",
+      "time": "20:00"
+    }
+    ```
+    *(where the date is the actual calendar date corresponding to the customer's intended Monday, e.g., `2026-09-21`).*
+  * **Conversation Context:** Date information can also be updated during a multi-turn conversation while preserving existing details:
+    ```text
+    Customer: "I need a table for 4."
+    Customer: "Monday at 8 PM."
+    Customer: "Actually, make that Tuesday."
+    ```
+    The system retains the party size (`4`) and time (`20:00`) while updating the date to the appropriate Tuesday (`2026-09-22`).
+* **Dietary Tag Canonicalization & Preference Counting:** Standardizes casual phrasing and medical terms into clean operational tags ("peanut allergy" → `nut-free`, "celiac" → `gluten-free`, "lactose intolerant" → `dairy-free`) and tracks exact person counts for each preference (e.g., `{"vegetarian": 1, "non_vegetarian": 4}`). Always outputs a JSON object, defaulting to `{}` if no preferences were mentioned.
+* **Missing Details:** If a customer doesn't specify a field, it cleanly defaults to `null` for `party_size`, `date`, and `time`, and `{}` for `food_preference`.
+* **Handling Slang & Typos:** Robustly handles casual expressions ("me and 7 buddies" → `8`) and common typos ("tbl for 3 peopel tommorow").
+* **Mid-Sentence Self-Corrections:** Automatically catches when a user corrects themselves in a single breath ("table for 4... actually make that 6" → `6`; "Thursday, sorry I meant Friday" → `Friday`).
 * **No Guessing or Hallucinations:** The system only extracts information explicitly mentioned or clearly implied by the customer—it won't invent dates, times, or guests out of thin air.
 
 ---
@@ -151,11 +185,13 @@ The program outputs the formatted JSON result:
 {
     "intent": "booking",
     "party_size": 5,
-    "date": "Saturday",
+    "date": "2026-09-19",
     "time": "20:00",
-    "food_preference": [
-        "vegetarian"
-    ]
+    "food_preference": {
+        "vegetarian": 1,
+        "non_vegetarian": 4
+    },
+    "summary": "The customer wants a table for 5 people this Saturday at 8 PM, with 1 vegetarian guest."
 }
 ```
 
@@ -202,7 +238,7 @@ State is managed in memory using the lightweight [`BookingState`](state_manager.
        "party_size": null,
        "date": null,
        "time": null,
-       "food_preference": []
+       "food_preference": {}
    }
    ```
 2. **Context-Aware Updates via the LLM:**  
@@ -212,7 +248,7 @@ State is managed in memory using the lightweight [`BookingState`](state_manager.
    * It leaves untouched fields alone so existing booking details aren't lost.
    * It outputs the updated state as a validated JSON object.
 3. **Data Cleanup & Turn History:**  
-   The updated values pass through [`normalize_booking_data()`](intent_classifier.py) to guarantee consistent formatting (24-hour `"HH:MM"`, lowercase dietary tags, integer party sizes). Every turn is also logged to `state.history` with a timestamp so you can review the full back-and-forth or reset the session anytime.
+   The updated values pass through [`normalize_booking_data()`](intent_classifier.py) to guarantee consistent formatting (24-hour `"HH:MM"`, resolved calendar dates `"YYYY-MM-DD"`, exact preference counts, integer party sizes). Every turn is also logged to `state.history` with a timestamp so you can review the full back-and-forth or reset the session anytime.
 
 ### 3. Handling Common Conversational Scenarios
 
@@ -225,10 +261,10 @@ The system handles the everyday ways people naturally message a restaurant:
 * **Adding New Details Later:**  
   If a customer mentions a dietary requirement later in the chat (*"One person is vegetarian"*), it gets added to the state without resetting the party size or time.
 * **Removing or Modifying Requirements:**  
-  * **Removing a requirement:** If someone changes their mind about a constraint (*"Actually, no dietary requirements"* or *"Scratch that, no allergies"*), the system resets `food_preference` back to `[]`.
-  * **Substitutions vs. additions:** The system knows whether a customer wants to replace a requirement or add another. *"Make it vegan instead"* replaces vegetarian with vegan (`["vegan"]`), whereas *"also one vegan"* keeps both (`["vegetarian", "vegan"]`).
+  * **Removing a requirement:** If someone changes their mind about a constraint (*"Actually, no dietary requirements"* or *"Scratch that, no allergies"*), the system resets `food_preference` back to `{}`.
+  * **Substitutions vs. additions:** The system knows whether a customer wants to replace a requirement or add another. *"Make it vegan instead"* replaces vegetarian with vegan (`{"vegan": 1, "non_vegetarian": 5}`), whereas *"also one vegan"* keeps both (`{"vegetarian": 1, "vegan": 1, "non_vegetarian": 4}`).
 * **Changing Intent Mid-Conversation:**  
-  If a customer decides to cancel (*"Please cancel our reservation"*) or pivots to asking questions (*"I don't want to book anymore, what time do you close?"*), the system updates the `intent` field (e.g., `"booking"` $\rightarrow$ `"cancellation"` or `"inquiry"`).
+  If a customer decides to cancel ("Please cancel our reservation") or pivots to asking questions ("I don't want to book anymore, what time do you close?"), the system updates the `intent` field (e.g., `"booking"` → `"cancellation"` or `"inquiry"`).
 
 ### 4. Step-by-Step Example Across Multiple Turns
 
@@ -236,12 +272,12 @@ Here is a realistic example showing how the state changes across 6 consecutive c
 
 | Turn | Customer Message | Resulting Conversation State | What Happened / State Explanation |
 | :---: | :--- | :--- | :--- |
-| **1** | `"I'd like a table for 4."` | `{"intent": "booking", "party_size": 4, "date": null, "time": null, "food_preference": []}` | **Initial Booking Started:** Sets `intent: "booking"` and captures `party_size: 4`. Remaining slots stay `null`/empty. |
-| **2** | `"This Saturday at 8 PM."` | `{"intent": "booking", "party_size": 4, "date": "Saturday", "time": "20:00", "food_preference": []}` | **Adding Details Step-by-Step:** Adds `date: "Saturday"` and `time: "20:00"` while **retaining** `party_size: 4`. |
-| **3** | `"Actually, make it 6."` | `{"intent": "booking", "party_size": 6, "date": "Saturday", "time": "20:00", "food_preference": []}` | **Updating Existing Info:** Updates `party_size` from 4 to 6. Keeps Saturday 20:00 intact. |
-| **4** | `"One person is vegetarian."` | `{"intent": "booking", "party_size": 6, "date": "Saturday", "time": "20:00", "food_preference": ["vegetarian"]}` | **Adding a New Detail:** Adds `"vegetarian"` to `food_preference` without affecting any other parameters. |
-| **5** | `"Actually, no dietary requirements."` | `{"intent": "booking", "party_size": 6, "date": "Saturday", "time": "20:00", "food_preference": []}` | **Removing a Requirement:** Catches the cancellation phrase and resets `food_preference` to `[]`. |
-| **6** | `"Please cancel our reservation."` | `{"intent": "cancellation", "party_size": 6, "date": "Saturday", "time": "20:00", "food_preference": []}` | **Changing Customer Intent:** Switches `intent` to `"cancellation"`, keeping collected details for reference. |
+| **1** | `"I'd like a table for 4."` | `{"intent": "booking", "party_size": 4, "date": null, "time": null, "food_preference": {}}` | **Initial Booking Started:** Sets `intent: "booking"` and captures `party_size: 4`. Remaining slots stay `null`/empty. |
+| **2** | `"This Saturday at 8 PM."` | `{"intent": "booking", "party_size": 4, "date": "2026-09-19", "time": "20:00", "food_preference": {}}` | **Adding Details Step-by-Step:** Adds `date: "2026-09-19"` and `time: "20:00"` while **retaining** `party_size: 4`. |
+| **3** | `"Actually, make it 6."` | `{"intent": "booking", "party_size": 6, "date": "2026-09-19", "time": "20:00", "food_preference": {}}` | **Updating Existing Info:** Updates `party_size` from 4 to 6. Keeps Saturday 2026-09-19 20:00 intact. |
+| **4** | `"One person is vegetarian."` | `{"intent": "booking", "party_size": 6, "date": "2026-09-19", "time": "20:00", "food_preference": {"vegetarian": 1, "non_vegetarian": 5}}` | **Adding a New Detail:** Adds `"vegetarian": 1` (with `non_vegetarian: 5` remainder) to `food_preference` without affecting any other parameters. |
+| **5** | `"Actually, no dietary requirements."` | `{"intent": "booking", "party_size": 6, "date": "2026-09-19", "time": "20:00", "food_preference": {}}` | **Removing a Requirement:** Catches the cancellation phrase and resets `food_preference` to `{}`. |
+| **6** | `"Please cancel our reservation."` | `{"intent": "cancellation", "party_size": 6, "date": "2026-09-19", "time": "20:00", "food_preference": {}}` | **Changing Customer Intent:** Switches `intent` to `"cancellation"`, keeping collected details for reference. |
 
 ### 5. Running the 10+ Multi-Turn Test Conversations
 
@@ -258,7 +294,7 @@ We included a test suite of 12 realistic multi-turn conversations in [`multi_tur
 | **`CONV-007`** | Adding new info while retaining previously collected info | 3 |
 | **`CONV-008`** | Multiple parameter changes in the same turn (*"6 people at 8:30 PM"*) | 3 |
 | **`CONV-009`** | Conversational / ambiguous correction (*"Not 7, 7:30"*) | 3 |
-| **`CONV-010`** | Changing customer intention (*Booking $\rightarrow$ Inquiry / Cancellation*) | 4 |
+| **`CONV-010`** | Changing customer intention (*Booking → Inquiry / Cancellation*) | 4 |
 | **`CONV-011`** | Dietary substitution (*"Make it vegan instead of vegetarian"*) | 3 |
 | **`CONV-012`** | Multi-parameter updates (*Date, time, and party size change simultaneously*) | 3 |
 
@@ -325,7 +361,7 @@ Final natural customer response
 Function calling directly integrates with the multi-turn state management system ([`BookingState`](state_manager.py)):
 * **Context-Driven Function Calling:** The LLM and execution engine consider previous messages when deciding which function to call and when constructing arguments.
 * **Preserving Earlier Information:** Previously provided information (date, time, party size, customer name, booking ID) is preserved when the customer adds new details or modifies existing ones.
-* **No Redundant Repetition:** When a customer provides details across multiple messages (*"Table for 4"* $\rightarrow$ *"This Saturday at 8 PM"* $\rightarrow$ *"Actually, make it 6"* $\rightarrow$ *"Is that available?"*), the system recognizes the intent and invokes `check_availability(date="Saturday", time="20:00", party_size=6)` using the accumulated context without asking the customer to repeat information.
+* **No Redundant Repetition:** When a customer provides details across multiple messages ("Table for 4" → "This Saturday at 8 PM" → "Actually, make it 6" → "Is that available?"), the system recognizes the intent and invokes `check_availability(date="2026-09-19", time="20:00", party_size=6)` using the accumulated context without asking the customer to repeat information.
 
 ### 5. Full Conversation Summary
 Every function call output includes a top-level **`summary`** attribute alongside the selected function and arguments:
@@ -338,7 +374,7 @@ Every function call output includes a top-level **`summary`** attribute alongsid
 {
   "function": "check_availability",
   "arguments": {
-    "date": "Saturday",
+    "date": "2026-09-19",
     "time": "20:00",
     "party_size": 6
   },
@@ -425,9 +461,13 @@ python test_tool_definitions.py
 {
     "intent": "booking",
     "party_size": 5,
-    "date": "Saturday",
+    "date": "2026-09-19",
     "time": "20:00",
-    "food_preference": ["vegetarian"]
+    "food_preference": {
+        "vegetarian": 1,
+        "non_vegetarian": 4
+    },
+    "summary": "The customer wants a table for 5 people this Saturday at 8 PM, with 1 vegetarian guest."
 }
 ```
 
@@ -438,9 +478,14 @@ python test_tool_definitions.py
 {
     "intent": "booking",
     "party_size": 4,
-    "date": "Friday",
+    "date": "2026-09-18",
     "time": "19:30",
-    "food_preference": ["vegan", "gluten-free"]
+    "food_preference": {
+        "vegan": 2,
+        "gluten-free": 1,
+        "non_vegetarian": 1
+    },
+    "summary": "The customer wants a table for 4 people on Friday at 19:30, with 2 vegan guests and 1 gluten-free guest."
 }
 ```
 
@@ -451,9 +496,10 @@ python test_tool_definitions.py
 {
     "intent": "booking",
     "party_size": 6,
-    "date": "Sunday",
+    "date": "2026-09-20",
     "time": null,
-    "food_preference": []
+    "food_preference": {},
+    "summary": "The customer is looking to reserve a table for 6 people this Sunday evening, with time not yet specified."
 }
 ```
 
@@ -464,9 +510,12 @@ python test_tool_definitions.py
 {
     "intent": "booking",
     "party_size": 8,
-    "date": "Thursday",
+    "date": "2026-09-17",
     "time": "20:00",
-    "food_preference": ["halal"]
+    "food_preference": {
+        "halal": 8
+    },
+    "summary": "The customer wants a table for 8 people this Thursday around 8 PM, with all halal meals."
 }
 ```
 
@@ -477,9 +526,10 @@ python test_tool_definitions.py
 {
     "intent": "booking",
     "party_size": 6,
-    "date": "Saturday",
+    "date": "2026-09-19",
     "time": "20:00",
-    "food_preference": []
+    "food_preference": {},
+    "summary": "The customer initially requested a table for 4 people but updated the party size to 6 for Saturday at 8 PM, with no food restrictions."
 }
 ```
 

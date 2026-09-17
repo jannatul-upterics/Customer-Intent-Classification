@@ -23,9 +23,9 @@
         "number_of_guests": 5,
         "date": "Friday"
       },
-      "summary": "The customer requested to check availability for a table for 5 people this Friday at 7:30 PM.",
+      "summary": "The customer wants to check availability for a table for 5 people on Friday at 7:30 PM.",
       "status": "PASS",
-      "final_response": "Great news! We do have a table available for 5 guests this Friday at 7:30 PM.\n\nWould you like me to go ahead and book it for you? If so, please provide your name for the reservation."
+      "final_response": "Great news! A table for 5 is available this Friday at 19:30. Would you like to go ahead and book it?"
     },
     {
       "id": "TC-002",
@@ -48,9 +48,9 @@
         "customer_name": "Sarah Jenkins",
         "date": "tomorrow"
       },
-      "summary": "The customer requested to create a booking for 2 guests under the name Sarah Jenkins for tomorrow at 8:00 PM.",
+      "summary": "The customer wants to create a booking for 2 guests under the name Sarah Jenkins for tomorrow at 8:00 PM.",
       "status": "PASS",
-      "final_response": "Your table for two under Sarah Jenkins is confirmed for tomorrow at 8:00 PM. Your booking ID is BK-3973."
+      "final_response": "Your table for two under the name Sarah Jenkins is confirmed for tomorrow at 20:00. Your booking reference is **BK-4714**. We look forward to welcoming you!"
     },
     {
       "id": "TC-003",
@@ -69,9 +69,9 @@
         "new_number_of_guests": 6,
         "booking_id": "BK-2041"
       },
-      "summary": "The customer requested to modify reservation BK-2041 by changing the party size to 6 people.",
+      "summary": "The customer requested to modify reservation BK-2041, changing the party size to 6 people.",
       "status": "PASS",
-      "final_response": "Great news! I’ve updated reservation **BK-2041** to accommodate **6 guests**. Is there anything else you’d like to adjust?"
+      "final_response": "Your reservation **BK-2041** has been updated to accommodate **6 guests**. Let me know if you’d like to adjust the date, time, or anything else!"
     },
     {
       "id": "TC-004",
@@ -89,9 +89,9 @@
         "new_date": "Sunday",
         "booking_id": "ABC789"
       },
-      "summary": "The customer requested to modify the reservation with ID ABC789, moving it to Sunday. The final confirmed parameters are new_date “Sunday” and booking_id “ABC789”.",
+      "summary": "The customer wants to modify reservation ABC789, moving it to Sunday.",
       "status": "PASS",
-      "final_response": "Your reservation has been successfully moved to Sunday. If you’d like to adjust the time or party size, just let me know and I’ll update it for you! Enjoy your dining experience."
+      "final_response": "Your reservation (ID ABC789) has been updated to Sunday. All other details (time and party size) remain the same. Let us know if you’d like any further changes!"
     },
     {
       "id": "TC-005",
@@ -109,9 +109,9 @@
         "new_time": "21:00",
         "booking_id": "BK-4092"
       },
-      "summary": "The customer requested to modify booking BK-4092 by changing the reservation time to 9:00 PM.",
+      "summary": "The customer requested to change the reservation time for booking BK-4092 to 9:00 PM.",
       "status": "PASS",
-      "final_response": "Your reservation BK‑4092 has been updated successfully – it’s now set for 9:00 PM. Let us know if there’s anything else we can arrange for you!"
+      "final_response": "Your reservation BK‑4092 has been updated to the new time of 21:00. Let me know if there’s anything else you’d like to adjust!"
     },
     {
       "id": "TC-006",
@@ -127,9 +127,9 @@
       "actual_arguments": {
         "booking_id": "BK-8812"
       },
-      "summary": "The customer requested to cancel reservation BK-8812.",
+      "summary": "The customer requested the cancellation of booking BK-8812 for tonight.",
       "status": "PASS",
-      "final_response": "Your reservation BK‑8812 has been successfully cancelled. If you need anything else or would like to make a new booking, just let me know!"
+      "final_response": "Your reservation has been cancelled. If you need anything else or would like to book again, just let me know!"
     },
     {
       "id": "TC-007",
@@ -156,7 +156,7 @@
       },
       "summary": "The customer requested to create a reservation for an anniversary dinner for 2 guests this Saturday at 7 PM under the name David Miller.",
       "status": "PASS",
-      "final_response": "Your anniversary dinner is confirmed! 🥂\n\n- **Name:** David Miller  \n- **Date:** Saturday  \n- **Time:** 7:00 PM  \n- **Party size:** 2  \n- **Booking ID:** BK-9858  \n\nPlease keep the booking ID handy in case you need to modify or cancel the reservation. Wishing you a wonderful anniversary!"
+      "final_response": "Your anniversary dinner is confirmed!\n\n- **Name:** David Miller  \n- **Date:** Saturday  \n- **Time:** 19:00  \n- **Party size:** 2  \n- **Booking ID:** BK-1813  \n\nWe look forward to celebrating with you!"
     },
     {
       "id": "TC-008",
@@ -179,9 +179,9 @@
         "number_of_guests": 6,
         "date": "Friday"
       },
-      "summary": "The customer asked to check availability for a table for 6 people on Friday at 8 PM; the party size was originally 4 but was increased to 6.",
+      "summary": "The customer initially asked for a table for 4 on Friday at 8 PM, then changed the party size from 4 to 6, and now wants to check availability for 6 guests on Friday at 8 PM.",
       "status": "PASS",
-      "final_response": "Great news—there is a table for 6 available on Friday at 20:00. May I have your name to confirm the reservation?"
+      "final_response": "Yes, a table for six is available this Friday at 20:00. If you’d like to reserve it, just share your name and I’ll confirm the booking for you."
     },
     {
       "id": "TC-009",
@@ -202,9 +202,9 @@
         "number_of_guests": 4,
         "date": "tomorrow"
       },
-      "summary": "The customer is checking availability for a dinner reservation for a party of 4 tomorrow at 8:00 PM.",
+      "summary": "The customer wants to check availability for a party of 4 at 8:00 PM tomorrow.",
       "status": "PASS",
-      "final_response": "Great news! We have a table available for 4 guests tomorrow at 8:00 PM.\n\nWould you like me to go ahead and book it for you? If so, please let me know your name."
+      "final_response": "Great news—there’s a table for 4 available tomorrow at 20:00. Could you please let me know the name you’d like the reservation under?"
     },
     {
       "id": "TC-010",
@@ -223,7 +223,7 @@
       },
       "summary": "The customer initially requested to modify reservation BK-5521 to a party of 5, but subsequently changed their intent to cancel the booking entirely due to plans falling through.",
       "status": "PASS",
-      "final_response": "Your reservation **BK-5521** has been successfully cancelled. If you need anything else, just let me know!"
+      "final_response": "Your reservation BK‑5521 has been successfully cancelled. If you need anything else, just let me know!"
     }
   ]
 }
