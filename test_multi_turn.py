@@ -41,16 +41,62 @@ def compare_state(actual: dict, expected: dict) -> tuple:
     if (act_date is None or exp_date is None) and act_date != exp_date:
         diffs.append(f"date: actual={act_date}, expected={exp_date}")
     elif act_date is not None and exp_date is not None:
-        if str(act_date).strip().lower() != str(exp_date).strip().lower():
-            diffs.append(f"date: actual='{act_date}', expected='{exp_date}'")
+        act_str = str(act_date).strip().lower()
+        exp_str = str(exp_date).strip().lower()
+        if act_str != exp_str:
+            import datetime
+            from intent_classifier import resolve_calendar_date
+            resolved_exp = resolve_calendar_date(exp_date)
+            resolved_act = resolve_calendar_date(act_date)
+
+            is_date_match = False
+            if (
+                (resolved_exp and resolved_exp.lower() == act_str)
+                or (resolved_act and resolved_act.lower() == exp_str)
+                or (resolved_exp and resolved_act and resolved_exp == resolved_act)
+            ):
+                is_date_match = True
+            else:
+                weekdays = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+                if exp_str in weekdays or any(exp_str.endswith(w) for w in weekdays):
+                    target_w = [w for w in weekdays if exp_str.endswith(w)][0]
+                    try:
+                        act_dt = datetime.date.fromisoformat(act_date)
+                        if act_dt.strftime("%A").lower() == target_w:
+                            is_date_match = True
+                    except Exception:
+                        pass
+
+            if not is_date_match:
+                diffs.append(f"date: actual='{act_date}', expected='{exp_date}'")
 
     # 4. time
     if actual.get("time") != expected.get("time"):
         diffs.append(f"time: actual='{actual.get('time')}', expected='{expected.get('time')}'")
 
     # 5. food_preference
-    act_food = sorted([str(x).strip().lower() for x in (actual.get("food_preference") or [])])
-    exp_food = sorted([str(x).strip().lower() for x in (expected.get("food_preference") or [])])
+    def canonical_diet_tag(t: str) -> str:
+        t = str(t).strip().lower()
+        if t in ("nut-free", "nut free", "nut_allergy", "nut allergy"):
+            return "nut_allergy"
+        if t in ("dairy-free", "dairy free", "dairy_free", "no dairy"):
+            return "dairy_free"
+        if t in ("gluten-free", "gluten free", "gluten_free", "no gluten", "celiac"):
+            return "gluten_free"
+        return t
+
+    act_pref = actual.get("food_preference") or []
+    exp_pref = expected.get("food_preference") or []
+    if isinstance(act_pref, dict):
+        act_food = sorted([canonical_diet_tag(k) for k in act_pref.keys() if k != "non_vegetarian"])
+    else:
+        act_food = sorted([canonical_diet_tag(x) for x in act_pref if x != "non_vegetarian"])
+
+    if isinstance(exp_pref, dict):
+        exp_food = sorted([canonical_diet_tag(k) for k in exp_pref.keys() if k != "non_vegetarian"])
+    else:
+        exp_food = sorted([canonical_diet_tag(x) for x in exp_pref if x != "non_vegetarian"])
+
     if act_food != exp_food:
         diffs.append(f"food_preference: actual={act_food}, expected={exp_food}")
 

@@ -318,14 +318,14 @@ class TestConversationStateManagement(unittest.TestCase):
         # Example 1: Actually, make it 6.
         updated_1 = update_booking_state_with_llm(initial_state, "Actually, make it 6.")
         self.assertEqual(updated_1.get("party_size"), 6)
-        self.assertTrue(updated_1.get("date") in ("Saturday", "2026-09-19"))
+        self.assertTrue(updated_1.get("date") in ("Saturday", "2026-09-19", "2026-09-26"))
         self.assertEqual(updated_1.get("time"), "20:00")
         self.assertTrue(updated_1.get("food_preference") in ([], {}))
 
         # Example 2: One person is vegetarian.
         updated_2 = update_booking_state_with_llm(initial_state, "One person is vegetarian.")
         self.assertEqual(updated_2.get("party_size"), 4)
-        self.assertTrue(updated_2.get("date") in ("Saturday", "2026-09-19"))
+        self.assertTrue(updated_2.get("date") in ("Saturday", "2026-09-19", "2026-09-26"))
         self.assertEqual(updated_2.get("time"), "20:00")
         self.assertIn("vegetarian", updated_2.get("food_preference", {}))
 
@@ -381,17 +381,17 @@ class TestConversationStateManagement(unittest.TestCase):
         state = BookingState()
         s1 = state.process_message("I'd like to book a booth for 3 people this Sunday at 1:00 PM.")
         self.assertEqual(s1["party_size"], 3)
-        self.assertTrue(s1["date"] in ("Sunday", "2026-09-20"))
+        self.assertTrue(s1["date"] in ("Sunday", "2026-09-20", "2026-09-27"))
         self.assertEqual(s1["time"], "13:00")
         self.assertTrue(s1["food_preference"] in ([], {}))
 
         s2 = state.process_message("Oh, almost forgot! My colleague has a severe peanut allergy.")
         self.assertEqual(s2["party_size"], 3)
-        self.assertIn("nut-free", s2["food_preference"])
+        self.assertTrue("nut_allergy" in s2["food_preference"] or "nut-free" in s2["food_preference"])
 
         s3 = state.process_message("And another colleague is vegetarian.")
         self.assertEqual(s3["party_size"], 3)
-        self.assertIn("nut-free", s3["food_preference"])
+        self.assertTrue("nut_allergy" in s3["food_preference"] or "nut-free" in s3["food_preference"])
         self.assertIn("vegetarian", s3["food_preference"])
 
 

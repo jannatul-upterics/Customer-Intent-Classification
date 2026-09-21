@@ -349,15 +349,42 @@ class BookingState:
         if new_time is not None:
             self.time = new_time
 
+        if message:
+            msg_lower = message.lower()
+            if re.search(r"\b(?:an\s+hour|1\s+hour)\s+earlier\b", msg_lower) and self.time and ":" in str(self.time):
+                h, m = map(int, self.time.split(":")[:2])
+                self.time = f"{(h - 1) % 24:02d}:{m:02d}"
+            elif re.search(r"\b(?:an\s+hour|1\s+hour)\s+later\b", msg_lower) and self.time and ":" in str(self.time):
+                h, m = map(int, self.time.split(":")[:2])
+                self.time = f"{(h + 1) % 24:02d}:{m:02d}"
+
+            time_q_match = re.search(r"\b(?:is|can we do|how about|table at)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*(?:open|available|work)?\b", msg_lower)
+            if time_q_match:
+                from intent_classifier import parse_time_expression
+                parsed_t = parse_time_expression(time_q_match.group(1))
+                if parsed_t:
+                    self.time = parsed_t
+                    if self.intent in ("inquiry", "booking") and (self.party_size or self.date):
+                        self.intent = "booking"
+
         # 6. Update food preference (handle dict with counts or list)
         new_food = extracted.get("food_preference")
-        if isinstance(new_food, dict):
-            self.food_preference = dict(new_food)
-        elif isinstance(new_food, list):
-            msg_lower = message.lower() if message else ""
-            is_replacement = bool(re.search(r"\b(?:actually|instead|change(?:\s+it|\s+that)?\s+to|make it|rather than)\b", msg_lower))
-            is_addition = bool(re.search(r"\b(?:also|and|in addition|another|as well|plus|both)\b", msg_lower))
+        msg_lower = message.lower() if message else ""
+        is_replacement = bool(re.search(r"\b(?:actually|instead|change(?:\s+it|\s+that)?\s+to|make it|rather than)\b", msg_lower))
+        is_addition = bool(re.search(r"\b(?:also|and|in addition|another|as well|plus|both)\b", msg_lower))
 
+        if isinstance(new_food, dict):
+            if is_replacement and not is_addition and new_food:
+                self.food_preference = dict(new_food)
+            elif new_food:
+                if isinstance(self.food_preference, dict):
+                    # Merge preferences
+                    merged = dict(self.food_preference)
+                    merged.update(new_food)
+                    self.food_preference = merged
+                else:
+                    self.food_preference = dict(new_food)
+        elif isinstance(new_food, list):
             if is_replacement and not is_addition and new_food:
                 # Substitute/replace previous preferences
                 self.food_preference = [str(x).strip().lower() for x in new_food if x and str(x).strip()]

@@ -24,7 +24,7 @@ The system accepts natural-language customer messages from chat widgets, SMS, or
 
 **Example Input:**
 ```text
-I'd like a table for five this Saturday at 8 PM. One person is vegetarian.
+hi book a table for 2 people
 ```
 
 ### Output
@@ -33,14 +33,32 @@ The system outputs a valid JSON object containing the reservation details, custo
 ```json
 {
   "intent": "booking",
+  "party_size": 2,
+  "date": null,
+  "time": null,
+  "food_preference": {},
+  "summary": "Customer wants to book a table for 2 people."
+}
+```
+
+**Additional Example with Full Parameters:**
+
+**Input:**
+```text
+I'd like a table for five this Saturday at 8 PM. One person is vegetarian.
+```
+
+**Output:**
+```json
+{
+  "intent": "booking",
   "party_size": 5,
   "date": "2026-09-19",
   "time": "20:00",
   "food_preference": {
-    "vegetarian": 1,
-    "non_vegetarian": 4
+    "vegetarian": 1
   },
-  "summary": "The customer wants a table for 5 people this Saturday at 8 PM, with 1 vegetarian guest."
+  "summary": "Customer wants to book a table for 5 people with 1 vegetarian guest."
 }
 ```
 
@@ -54,10 +72,20 @@ The system outputs a valid JSON object containing the reservation details, custo
 | **`party_size`** | `integer` | Yes | Total number of dining guests. Converted from words to integer digits. Set to `null` if unspecified, ambiguous, or zero. |
 | **`date`** | `string` | Yes | Target reservation date normalized strictly into `"YYYY-MM-DD"` format (e.g., `"2026-09-21"`). Set to `null` if unspecified, ambiguous, or invalid. |
 | **`time`** | `string` | Yes | Target reservation time strictly in 24-hour `"HH:MM"` format (e.g., `"20:00"`, `"12:30"`). Set to `null` if unspecified or an imprecise wide range. |
-| **`food_preference`** | `object` | No | Object mapping normalized dietary requirements or food allergies to exact person counts (e.g., `{"vegetarian": 1, "non_vegetarian": 4}`). Defaults to `{}` when none are mentioned. |
-| **`summary`** | `string` | No | Concise natural-language summary of the conversation and confirmed reservation details. |
+| **`food_preference`** | `object` | No | Object mapping normalized dietary requirements or food allergies to exact person counts (e.g., `{"vegetarian": 1}`, `{"vegetarian": 2, "vegan": 1}`, `{"nut_allergy": 1, "gluten_free": 2}`). Defaults to `{}` when none are mentioned. |
+| **`summary`** | `string` | No | Short, natural-language summary of the customer's current request. Always present, non-empty, and never `null` or omitted. |
 
 *(Note: Additional customer preferences mentioned in the request, such as `seating_preference` or `accessibility_requirement`, are also captured as structured objects with exact person counts, e.g. `{"window": 2}`, `{"wheelchair_access": 1}`).*
+
+### Summary Field Rules & Documentation
+The `summary` field provides a concise natural-language overview of the customer's intent and extracted booking parameters:
+* **Always Included:** `summary` is always included in the JSON response. It is always a string and should never be `null` or omitted.
+* **Natural-Language Summary:** It is a short, natural-language summary of the customer's current request.
+* **Explicit Information Only:** It is generated only from information explicitly provided by the customer in their message.
+* **No Inventions or Assumptions:** It must not invent missing information (it never guesses or assumes unmentioned party sizes, dates, or times).
+* **Reflects Latest State:** It reflects the latest/current conversation state when information is changed, modified, or updated.
+* **Concise & Context-Appropriate:** It remains concise, clear, and suitable for a restaurant booking conversation.
+* **Single-Parameter Handling:** If the customer only provides one piece of information, it summarizes only that information.
 
 ---
 
@@ -84,9 +112,12 @@ The extraction engine (`intent_classifier.py`) applies practical normalization r
     The extracted output contains:
     ```json
     {
+      "intent": "booking",
       "party_size": 4,
       "date": "2026-09-21",
-      "time": "20:00"
+      "time": "20:00",
+      "food_preference": {},
+      "summary": "Customer wants to book a table for 4 people on Monday at 8 PM."
     }
     ```
     *(where the date is the actual calendar date corresponding to the customer's intended Monday, e.g., `2026-09-21`).*
@@ -97,10 +128,32 @@ The extraction engine (`intent_classifier.py`) applies practical normalization r
     Customer: "Actually, make that Tuesday."
     ```
     The system retains the party size (`4`) and time (`20:00`) while updating the date to the appropriate Tuesday (`2026-09-22`).
-* **Dietary Tag Canonicalization & Preference Counting:** Standardizes casual phrasing and medical terms into clean operational tags ("peanut allergy" → `nut-free`, "celiac" → `gluten-free`, "lactose intolerant" → `dairy-free`) and tracks exact person counts for each preference (e.g., `{"vegetarian": 1, "non_vegetarian": 4}`). Always outputs a JSON object, defaulting to `{}` if no preferences were mentioned.
-* **Missing Details:** If a customer doesn't specify a field, it cleanly defaults to `null` for `party_size`, `date`, and `time`, and `{}` for `food_preference`.
+* **Food Preference Normalization & Dietary Tag Canonicalization:** Standardizes casual phrasing, medical terms, and colloquial synonyms into clean, canonical `snake_case` dietary categories. Words with equivalent meaning are mapped to a single standardized category, and counts for guests sharing the same preference are aggregated:
+  * **Standardized Preference Categories:**
+    * **`vegetarian`**: `vegetarian`, `veg`, `veggie`, `vegetarian food`, `veg food`, `non-meat`, `meat-free`, `no meat`, `meatless`
+    * **`vegan`**: `vegan`, `plant-based`, `plant based`, `fully plant-based`, `dairy-free and egg-free` (when clearly meaning a vegan diet). *(Note: `vegan` and `vegetarian` are distinct dietary restrictions and are never merged)*
+    * **`dairy_free`**: `no dairy`, `dairy free`, `dairy-free`, `without dairy`, `lactose intolerant`, `lactose-free`, `lactose free`
+    * **`gluten_free`**: `no gluten`, `gluten free`, `gluten-free`, `celiac`, `celiac disease`, `coeliac`
+    * **`nut_allergy`**: `nut allergy`, `allergic to nuts`, `nuts allergy`, `peanut allergy`, `peanut allergies`, `tree nut allergy`, `allergic to peanuts`, `nut-free`, `peanut-free`
+    * **`halal`**: `halal food`, `halal`
+    * **`kosher`**: `kosher food`, `kosher`
+    * **`no_seafood`**: `no seafood`, `seafood-free`, `without seafood`, `seafood allergy`
+    * **`pescatarian`**: `pescatarian`, `pescetarian`
+  * **Normalization Rules:**
+    1. **Canonical Categories:** Normalize equivalent words and phrases into one canonical preference category.
+    2. **No Synonym Keys:** Do not create separate dictionary keys for synonyms (e.g., `"veg"` and `"vegetarian"` map to `"vegetarian"`).
+    3. **No Inventions:** Do not invent a preference that the customer did not explicitly state (never invent `non_vegetarian` unless explicitly requested).
+    4. **Preserve Distinct Meanings:** Do not merge preferences that have different meanings (for example, keep `vegan` and `vegetarian` separate).
+    5. **Multiple Requirements:** If the customer mentions multiple distinct requirements, include all of them under their normalized names.
+    6. **Count Resolution:** Maintain preference-counting logic when numbers are provided (assign the party size when the customer says "all", or `1` when they say "someone" / "one guest").
+    7. **Combine Counts for Synonyms:** If multiple guests share the same normalized preference using different synonyms, combine their counts into that category (e.g., "two are veg and one is vegetarian" → `{"vegetarian": 3}`).
+    8. **Unspecified Counts:** If the customer mentions a preference but not a count, do not invent one (assign `null`).
+    9. **Preserve Allergies vs. Preferences:** Preserve the distinction between preferences and allergies where defined by the categories above (e.g., `nut_allergy`).
+    10. **Consistent Naming:** Use lowercase `snake_case` for all standardized preference keys (`vegetarian`, `vegan`, `dairy_free`, `gluten_free`, `nut_allergy`, `halal`, `kosher`, `no_seafood`, `pescatarian`).
+* **Summary Generation Rules:** Generates a concise, natural third-person summary in every response. It is strictly factual—reflecting only explicitly provided information, updating dynamically upon mid-sentence corrections or parameter modifications, and never inventing unstated details.
+* **Missing Details:** If a customer doesn't specify a field, it cleanly defaults to `null` for `party_size`, `date`, and `time`, and `{}` for `food_preference`. The `summary` field is never omitted or null, and summarizes whatever information was provided.
 * **Handling Slang & Typos:** Robustly handles casual expressions ("me and 7 buddies" → `8`) and common typos ("tbl for 3 peopel tommorow").
-* **Mid-Sentence Self-Corrections:** Automatically catches when a user corrects themselves in a single breath ("table for 4... actually make that 6" → `6`; "Thursday, sorry I meant Friday" → `Friday`).
+* **Mid-Sentence Self-Corrections:** Automatically catches when a user corrects themselves in a single breath ("table for 4... actually make that 6" → `6`; "Thursday, sorry I meant Friday" → `Friday`), updating both parameters and the summary accordingly.
 * **No Guessing or Hallucinations:** The system only extracts information explicitly mentioned or clearly implied by the customer—it won't invent dates, times, or guests out of thin air.
 
 ---
@@ -178,9 +231,24 @@ python intent_classifier.py
 ```
 Type any customer message and press **Enter**:
 ```text
-I'd like a table for five this Saturday at 8 PM. One person is vegetarian.
+hi book a table for 2 people
 ```
 The program outputs the formatted JSON result:
+```json
+{
+    "intent": "booking",
+    "party_size": 2,
+    "date": null,
+    "time": null,
+    "food_preference": {},
+    "summary": "Customer wants to book a table for 2 people."
+}
+```
+
+Or with detailed reservation criteria:
+```text
+I'd like a table for five this Saturday at 8 PM. One person is vegetarian.
+```
 ```json
 {
     "intent": "booking",
@@ -191,14 +259,14 @@ The program outputs the formatted JSON result:
         "vegetarian": 1,
         "non_vegetarian": 4
     },
-    "summary": "The customer wants a table for 5 people this Saturday at 8 PM, with 1 vegetarian guest."
+    "summary": "Customer wants to book a table for 5 people with 1 vegetarian guest."
 }
 ```
 
 ### 2. Pipe Input Mode (Ideal for Scripting & Automation)
 Pipe customer text directly into the script:
 ```powershell
-"I'd like a table for five this Saturday at 8 PM. One person is vegetarian." | python intent_classifier.py
+"hi book a table for 2 people" | python intent_classifier.py
 ```
 
 ### 3. Interactive Multi-Turn Session Mode
@@ -454,7 +522,21 @@ python test_tool_definitions.py
 
 ## 11. Examples of Supported Scenarios
 
-### 1. Complete Booking Request
+### 1. Minimal Booking Request
+**Input:** `"hi book a table for 2 people"`  
+**Output:**
+```json
+{
+    "intent": "booking",
+    "party_size": 2,
+    "date": null,
+    "time": null,
+    "food_preference": {},
+    "summary": "Customer wants to book a table for 2 people."
+}
+```
+
+### 2. Complete Booking Request
 **Input:** `"I'd like a table for five this Saturday at 8 PM. One person is vegetarian."`  
 **Output:**
 ```json
@@ -464,14 +546,13 @@ python test_tool_definitions.py
     "date": "2026-09-19",
     "time": "20:00",
     "food_preference": {
-        "vegetarian": 1,
-        "non_vegetarian": 4
+        "vegetarian": 1
     },
-    "summary": "The customer wants a table for 5 people this Saturday at 8 PM, with 1 vegetarian guest."
+    "summary": "Customer wants to book a table for 5 people with 1 vegetarian guest."
 }
 ```
 
-### 2. Multiple Dietary Preferences
+### 3. Multiple Dietary Preferences
 **Input:** `"Table for 4 on Friday at 19:30. Two of us are vegan and one is gluten-free."`  
 **Output:**
 ```json
@@ -482,14 +563,13 @@ python test_tool_definitions.py
     "time": "19:30",
     "food_preference": {
         "vegan": 2,
-        "gluten-free": 1,
-        "non_vegetarian": 1
+        "gluten_free": 1
     },
-    "summary": "The customer wants a table for 4 people on Friday at 19:30, with 2 vegan guests and 1 gluten-free guest."
+    "summary": "Customer wants to book a table for 4 people on Friday at 19:30 with 2 vegan guests, 1 gluten-free guest."
 }
 ```
 
-### 3. Missing Information (Handling `null`)
+### 4. Missing Information (Handling `null`)
 **Input:** `"Looking to reserve a table for six this Sunday evening. Not sure about the exact time yet."`  
 **Output:**
 ```json
@@ -499,11 +579,11 @@ python test_tool_definitions.py
     "date": "2026-09-20",
     "time": null,
     "food_preference": {},
-    "summary": "The customer is looking to reserve a table for 6 people this Sunday evening, with time not yet specified."
+    "summary": "Customer wants to book a table for 6 people this Sunday evening."
 }
 ```
 
-### 4. Slang and Colloquial Language
+### 5. Slang and Colloquial Language
 **Input:** `"Hey mate, gonna need a spot for me and 7 buddies this Thursday around 8 PM, all halal meat please."`  
 **Output:**
 ```json
@@ -515,11 +595,11 @@ python test_tool_definitions.py
     "food_preference": {
         "halal": 8
     },
-    "summary": "The customer wants a table for 8 people this Thursday around 8 PM, with all halal meals."
+    "summary": "Customer wants to book a table for 8 people this Thursday around 8 PM with 8 halal guests."
 }
 ```
 
-### 5. Self-Correction Mid-Message
+### 6. Self-Correction Mid-Message
 **Input:** `"I'd like to book a table for 4... actually wait, make that 6 people for this Saturday at 8 PM. No food restrictions."`  
 **Output:**
 ```json
@@ -529,7 +609,56 @@ python test_tool_definitions.py
     "date": "2026-09-19",
     "time": "20:00",
     "food_preference": {},
-    "summary": "The customer initially requested a table for 4 people but updated the party size to 6 for Saturday at 8 PM, with no food restrictions."
+    "summary": "Customer wants to book a table for 6 people this Saturday at 8 PM."
+}
+```
+
+### 7. Food Preference Normalization & Count Aggregation
+**Input:** `"I need a table for 4, two are veg and one is vegetarian."`  
+**Output:**
+```json
+{
+    "intent": "booking",
+    "party_size": 4,
+    "date": null,
+    "time": null,
+    "food_preference": {
+        "vegetarian": 3
+    },
+    "summary": "Customer wants to book a table for 4 people with 3 vegetarian guests."
+}
+```
+
+### 8. Plant-Based & Vegan Normalization
+**Input:** `"We have 5 people. One is vegan and another wants plant based food."`  
+**Output:**
+```json
+{
+    "intent": "booking",
+    "party_size": 5,
+    "date": null,
+    "time": null,
+    "food_preference": {
+        "vegan": 2
+    },
+    "summary": "Customer wants to book a table for 5 people with 2 vegan guests."
+}
+```
+
+### 9. Distinct Allergy & Dietary Restrictions
+**Input:** `"One guest has a nut allergy and two guests are gluten free."`  
+**Output:**
+```json
+{
+    "intent": "booking",
+    "party_size": null,
+    "date": null,
+    "time": null,
+    "food_preference": {
+        "nut_allergy": 1,
+        "gluten_free": 2
+    },
+    "summary": "Customer noted 1 guest with a nut allergy and 2 gluten-free guests."
 }
 ```
 

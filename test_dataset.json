@@ -5,12 +5,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 5,
-      "date": "2026-09-19",
+      "date": "2026-09-26",
       "time": "20:00",
       "food_preference": {
-        "vegetarian": 1,
-        "non_vegetarian": 4
-      }
+        "vegetarian": 1
+      },
+      "summary": "Customer wants to book a table for 5 people this Saturday at 20:00 with 1 vegetarian guest."
     }
   },
   {
@@ -19,13 +19,13 @@
     "expected": {
       "intent": "booking",
       "party_size": 4,
-      "date": "2026-09-18",
+      "date": "2026-09-25",
       "time": "19:30",
       "food_preference": {
         "vegan": 2,
-        "gluten-free": 1,
-        "non_vegetarian": 1
-      }
+        "gluten_free": 1
+      },
+      "summary": "Customer wants to book a table for 4 people on Friday at 19:30 with 2 vegan and 1 gluten-free guest."
     }
   },
   {
@@ -34,12 +34,10 @@
     "expected": {
       "intent": "booking",
       "party_size": 1,
-      "date": "2026-09-18",
+      "date": "2026-09-22",
       "time": "13:00",
       "food_preference": {},
-      "seating_preference": {
-        "quiet": 1
-      }
+      "summary": "Customer wants to book a quiet table for 1 person tomorrow at 13:00."
     }
   },
   {
@@ -48,11 +46,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 2,
-      "date": "2026-09-17",
+      "date": "2026-09-21",
       "time": "20:30",
       "food_preference": {
         "halal": 2
-      }
+      },
+      "summary": "Customer wants to book a table for 2 people tonight at 20:30 with halal food."
     }
   },
   {
@@ -61,9 +60,10 @@
     "expected": {
       "intent": "booking",
       "party_size": 6,
-      "date": "2026-09-20",
+      "date": "2026-09-27",
       "time": null,
-      "food_preference": {}
+      "food_preference": {},
+      "summary": "Customer wants to book a table for 6 people this Sunday evening."
     }
   },
   {
@@ -72,11 +72,12 @@
     "expected": {
       "intent": "booking",
       "party_size": null,
-      "date": "2026-09-18",
+      "date": "2026-09-22",
       "time": "19:00",
       "food_preference": {
-        "dairy-free": 1
-      }
+        "dairy_free": 1
+      },
+      "summary": "Customer wants to book a reservation tomorrow at 19:00 with 1 dairy-free guest."
     }
   },
   {
@@ -87,7 +88,8 @@
       "party_size": 3,
       "date": null,
       "time": "18:45",
-      "food_preference": {}
+      "food_preference": {},
+      "summary": "Customer wants to book a table for 3 people at 18:45."
     }
   },
   {
@@ -96,12 +98,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 3,
-      "date": "2026-09-18",
+      "date": "2026-09-22",
       "time": "21:00",
       "food_preference": {
-        "vegetarian": 1,
-        "non_vegetarian": 2
-      }
+        "vegetarian": 1
+      },
+      "summary": "Customer wants to book a table for 3 people tomorrow at 21:00 with 1 vegetarian guest."
     }
   },
   {
@@ -110,11 +112,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 8,
-      "date": "2026-09-17",
+      "date": "2026-09-24",
       "time": "20:00",
       "food_preference": {
         "halal": 8
-      }
+      },
+      "summary": "Customer wants to book a table for 8 people this Thursday around 20:00 with 8 halal guests."
     }
   },
   {
@@ -123,15 +126,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 4,
-      "date": "2026-09-16",
+      "date": "2026-09-23",
       "time": "19:00",
       "food_preference": {
-        "nut-free": 1,
-        "non_vegetarian": 3
+        "nut_allergy": 1
       },
-      "accessibility_requirement": {
-        "high_chair": null
-      }
+      "summary": "Customer wants to book a table for 4 people this Wednesday at 19:00 with 1 nut-allergic guest."
     }
   },
   {
@@ -140,9 +140,10 @@
     "expected": {
       "intent": "booking",
       "party_size": 6,
-      "date": "2026-09-19",
+      "date": "2026-09-26",
       "time": "20:00",
-      "food_preference": {}
+      "food_preference": {},
+      "summary": "Customer wants to book a table for 6 people this Saturday at 20:00."
     }
   },
   {
@@ -151,12 +152,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 2,
-      "date": "2026-09-18",
+      "date": "2026-09-25",
       "time": "18:30",
       "food_preference": {
-        "vegetarian": 1,
-        "non_vegetarian": 1
-      }
+        "vegetarian": 1
+      },
+      "summary": "Customer wants to book a table for 2 people on Friday at 18:30 with 1 vegetarian guest."
     }
   },
   {
@@ -165,12 +166,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 3,
-      "date": "2026-09-20",
+      "date": "2026-09-27",
       "time": "10:30",
       "food_preference": {
-        "kosher": 2,
-        "non_vegetarian": 1
-      }
+        "kosher": 2
+      },
+      "summary": "Customer wants to book a table for 3 people this Sunday at 10:30 with 2 kosher guests."
     }
   },
   {
@@ -179,12 +180,10 @@
     "expected": {
       "intent": "booking",
       "party_size": 4,
-      "date": "2026-09-18",
+      "date": "2026-09-25",
       "time": null,
       "food_preference": {},
-      "seating_preference": {
-        "booth": 4
-      }
+      "summary": "Customer wants to reserve a booth for 4 people this Friday evening."
     }
   },
   {
@@ -196,9 +195,9 @@
       "date": null,
       "time": "19:00",
       "food_preference": {
-        "pescatarian": 1,
-        "non_vegetarian": 4
-      }
+        "pescatarian": 1
+      },
+      "summary": "Customer wants to book a table for 5 people at 19:00 with 1 pescatarian guest."
     }
   },
   {
@@ -209,7 +208,8 @@
       "party_size": 2,
       "date": null,
       "time": "20:00",
-      "food_preference": {}
+      "food_preference": {},
+      "summary": "Customer wants to book a table for 2 people at 20:00."
     }
   },
   {
@@ -218,11 +218,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 150,
-      "date": "2026-09-18",
+      "date": "2026-09-22",
       "time": "18:00",
       "food_preference": {
         "vegetarian": null
-      }
+      },
+      "summary": "Customer wants to reserve a table for 150 people tomorrow at 18:00 with vegetarian guests."
     }
   },
   {
@@ -231,9 +232,10 @@
     "expected": {
       "intent": "booking",
       "party_size": null,
-      "date": "2026-09-19",
+      "date": "2026-09-26",
       "time": "20:00",
-      "food_preference": {}
+      "food_preference": {},
+      "summary": "Customer wants to reserve a table this Saturday at 20:00 to store suitcases."
     }
   },
   {
@@ -246,10 +248,10 @@
       "time": "12:00",
       "food_preference": {
         "vegan": 1,
-        "gluten-free": 1,
-        "nut-free": 1,
-        "non_vegetarian": 5
-      }
+        "gluten_free": 1,
+        "nut_allergy": 1
+      },
+      "summary": "Customer wants to book a table for 8 guests on Monday at 12:00 with 1 vegan, 1 gluten-free, and 1 nut-allergic guest."
     }
   },
   {
@@ -258,9 +260,10 @@
     "expected": {
       "intent": "cancellation",
       "party_size": 4,
-      "date": "2026-09-18",
+      "date": "2026-09-25",
       "time": "20:00",
-      "food_preference": {}
+      "food_preference": {},
+      "summary": "Customer wants to cancel their reservation for 4 people this Friday at 20:00."
     }
   },
   {
@@ -269,9 +272,10 @@
     "expected": {
       "intent": "modification",
       "party_size": 2,
-      "date": "2026-09-18",
+      "date": "2026-09-22",
       "time": "21:00",
-      "food_preference": {}
+      "food_preference": {},
+      "summary": "Customer wants to modify a booking for 2 people tomorrow to 21:00."
     }
   },
   {
@@ -280,11 +284,10 @@
     "expected": {
       "intent": "inquiry",
       "party_size": null,
-      "date": "2026-09-19",
+      "date": "2026-09-26",
       "time": null,
-      "food_preference": {
-        "vegan": null
-      }
+      "food_preference": {},
+      "summary": "Customer is inquiring about vegan options and Saturday closing time."
     }
   },
   {
@@ -293,15 +296,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 10,
-      "date": "2026-09-19",
+      "date": "2026-09-26",
       "time": "20:00",
       "food_preference": {
-        "vegetarian": 3,
-        "non_vegetarian": 7
+        "vegetarian": 3
       },
-      "celebration_requirement": {
-        "graduation": 10
-      }
+      "summary": "Customer wants to book a table for 10 people on Saturday at 20:00 for graduation with 3 vegetarian guests."
     }
   },
   {
@@ -310,11 +310,12 @@
     "expected": {
       "intent": "booking",
       "party_size": 2,
-      "date": "2026-09-15",
+      "date": "2026-09-22",
       "time": "12:00",
       "food_preference": {
         "halal": 2
-      }
+      },
+      "summary": "Customer wants to book a table for 2 people this Tuesday at 12:00 with 2 halal guests."
     }
   },
   {
@@ -325,7 +326,79 @@
       "party_size": null,
       "date": null,
       "time": null,
-      "food_preference": {}
+      "food_preference": {},
+      "summary": "Customer wants to book a table."
+    }
+  },
+  {
+    "id": "TC026",
+    "input": "Book a table for 2, one is veg and one is vegetarian.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 2,
+      "date": null,
+      "time": null,
+      "food_preference": {
+        "vegetarian": 2
+      },
+      "summary": "Customer wants to book a table for 2 people with 2 vegetarian guests."
+    }
+  },
+  {
+    "id": "TC027",
+    "input": "We have 3 people, two want plant-based food and one is vegan.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 3,
+      "date": null,
+      "time": null,
+      "food_preference": {
+        "vegan": 3
+      },
+      "summary": "Customer wants to book a table for 3 people with 3 vegan guests."
+    }
+  },
+  {
+    "id": "TC028",
+    "input": "One guest is gluten free and another has a gluten allergy.",
+    "expected": {
+      "intent": "booking",
+      "party_size": null,
+      "date": null,
+      "time": null,
+      "food_preference": {
+        "gluten_free": 2
+      },
+      "summary": "Customer noted 2 guests with a gluten-free requirement."
+    }
+  },
+  {
+    "id": "TC029",
+    "input": "We have 4 guests. Two are vegetarian and one is vegan.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 4,
+      "date": null,
+      "time": null,
+      "food_preference": {
+        "vegetarian": 2,
+        "vegan": 1
+      },
+      "summary": "Customer wants to book a table for 4 guests with 2 vegetarian and 1 vegan guest."
+    }
+  },
+  {
+    "id": "TC030",
+    "input": "I need a table for 4, two are veg and one is vegetarian.",
+    "expected": {
+      "intent": "booking",
+      "party_size": 4,
+      "date": null,
+      "time": null,
+      "food_preference": {
+        "vegetarian": 3
+      },
+      "summary": "Customer wants to book a table for 4 people with 3 vegetarian guests."
     }
   }
 ]

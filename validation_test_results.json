@@ -1,0 +1,538 @@
+{
+  "total_tests": 18,
+  "passed": 18,
+  "failed": 0,
+  "accuracy": 100.0,
+  "tests": [
+    {
+      "test_id": "VAL-001",
+      "category": "Normal slang",
+      "input": "Yo, book me a table for 4 tonight.",
+      "expected_validation": {
+        "valid": true,
+        "issues": []
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": "2026-09-21",
+        "time": null
+      },
+      "actual_validation": {
+        "valid": true,
+        "issues": []
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": "2026-09-21",
+        "time": null
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-002",
+      "category": "Abbreviated guest count",
+      "input": "Need a table for 6 ppl tomorrow.",
+      "expected_validation": {
+        "valid": true,
+        "issues": []
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 6,
+        "date": "2026-09-22",
+        "time": null
+      },
+      "actual_validation": {
+        "valid": true,
+        "issues": []
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 6,
+        "date": "2026-09-22",
+        "time": null
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-003",
+      "category": "Typographical errors",
+      "input": "book tabel for 4 tomorrow at 8",
+      "expected_validation": {
+        "valid": true,
+        "issues": []
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": "2026-09-22",
+        "time": "20:00"
+      },
+      "actual_validation": {
+        "valid": true,
+        "issues": []
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": "2026-09-22",
+        "time": "20:00"
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-004",
+      "category": "Poor grammar",
+      "input": "we r 5 ppl for dinner Saturday",
+      "expected_validation": {
+        "valid": true,
+        "issues": []
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 5,
+        "date": "2026-09-26",
+        "time": null
+      },
+      "actual_validation": {
+        "valid": true,
+        "issues": []
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 5,
+        "date": "2026-09-26",
+        "time": null
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-005",
+      "category": "Invalid guest count: 0",
+      "input": "Book a table for 0 guests tomorrow at 7 PM",
+      "expected_validation": {
+        "valid": false
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": null,
+        "date": "2026-09-22",
+        "time": "19:00"
+      },
+      "actual_validation": {
+        "valid": false,
+        "issues": [
+          "Invalid guest count: party size must be at least 1 person."
+        ]
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": null,
+        "date": "2026-09-22",
+        "time": "19:00"
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-006",
+      "category": "Invalid guest count: negative number",
+      "input": "Can you book a table for -5 people?",
+      "expected_validation": {
+        "valid": false
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": null,
+        "date": null,
+        "time": null
+      },
+      "actual_validation": {
+        "valid": false,
+        "issues": [
+          "Invalid guest count: party size cannot be negative (-5)."
+        ]
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": null,
+        "date": null,
+        "time": null
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-007",
+      "category": "Very large but potentially valid group",
+      "input": "Book a private dinner for 150 people on Friday",
+      "expected_validation": {
+        "valid": true,
+        "issues": []
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 150,
+        "date": "2026-09-25",
+        "time": null
+      },
+      "actual_validation": {
+        "valid": true,
+        "issues": []
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 150,
+        "date": "2026-09-25",
+        "time": null
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-008",
+      "category": "Impossible calendar date",
+      "input": "Book a table for 4 on February 31st at 8 PM",
+      "expected_validation": {
+        "valid": false
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": null,
+        "time": "20:00"
+      },
+      "actual_validation": {
+        "valid": false,
+        "issues": [
+          "Invalid date: 'february 31st' is an impossible calendar date (month 2 has at most 28 days)."
+        ]
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": null,
+        "time": "20:00"
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-009",
+      "category": "Invalid date format",
+      "input": "Table for 2 on 13/45/2026 at 7 PM",
+      "expected_validation": {
+        "valid": false
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 2,
+        "date": null,
+        "time": "19:00"
+      },
+      "actual_validation": {
+        "valid": false,
+        "issues": [
+          "Invalid date format: '13/45/2026' does not represent a valid calendar date."
+        ]
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 2,
+        "date": null,
+        "time": "19:00"
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-010",
+      "category": "Invalid time",
+      "input": "Reserve for 4 tomorrow at 25:00",
+      "expected_validation": {
+        "valid": false
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": "2026-09-22",
+        "time": null
+      },
+      "actual_validation": {
+        "valid": false,
+        "issues": [
+          "Invalid time: '25:00' is not a valid clock time (hour > 23)."
+        ]
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": "2026-09-22",
+        "time": null
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-011",
+      "category": "Ambiguous date",
+      "input": "Table for 4 sometime next week",
+      "expected_validation": {
+        "valid": false
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": null,
+        "time": null
+      },
+      "actual_validation": {
+        "valid": false,
+        "issues": [
+          "Ambiguous date: 'sometime next week' is too vague to determine an exact reservation date."
+        ]
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": null,
+        "time": null
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-012",
+      "category": "Ambiguous time",
+      "input": "Table for 4 tomorrow between 6 and 9 PM",
+      "expected_validation": {
+        "valid": false
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": "2026-09-22",
+        "time": null
+      },
+      "actual_validation": {
+        "valid": false,
+        "issues": [
+          "Ambiguous time: 'time range window' is an indefinite window rather than a specific booking time."
+        ]
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": "2026-09-22",
+        "time": null
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-013",
+      "category": "Valid request containing slang",
+      "input": "Can you hook us up with a table for 3 this Friday at 7 PM?",
+      "expected_validation": {
+        "valid": true,
+        "issues": []
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 3,
+        "date": "2026-09-25",
+        "time": "19:00"
+      },
+      "actual_validation": {
+        "valid": true,
+        "issues": []
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 3,
+        "date": "2026-09-25",
+        "time": "19:00"
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-014",
+      "category": "Valid information mixed with an invalid field",
+      "input": "Book a table for 4 people on February 31 at 8 PM",
+      "expected_validation": {
+        "valid": false
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": null,
+        "time": "20:00"
+      },
+      "actual_validation": {
+        "valid": false,
+        "issues": [
+          "Invalid date: 'february 31' is an impossible calendar date (month 2 has at most 28 days)."
+        ]
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 4,
+        "date": null,
+        "time": "20:00"
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-015",
+      "category": "Invalid information introduced during multi-turn conversation",
+      "type": "multi-turn",
+      "turns": [
+        {
+          "turn_id": 1,
+          "input": "Table for 4 tomorrow at 8 PM",
+          "expected_validation": {
+            "valid": true
+          },
+          "expected_state": {
+            "intent": "booking",
+            "party_size": 4,
+            "date": "2026-09-22",
+            "time": "20:00"
+          },
+          "actual_validation": {
+            "valid": true,
+            "issues": []
+          },
+          "actual_state": {
+            "intent": "booking",
+            "party_size": 4,
+            "date": "2026-09-22",
+            "time": "20:00"
+          },
+          "status": "PASS",
+          "diffs": []
+        },
+        {
+          "turn_id": 2,
+          "input": "Actually make that -5 people",
+          "expected_validation": {
+            "valid": false
+          },
+          "expected_state": {
+            "intent": "booking",
+            "party_size": 4,
+            "date": "2026-09-22",
+            "time": "20:00"
+          },
+          "actual_validation": {
+            "valid": false,
+            "issues": [
+              "Invalid guest count: party size cannot be negative (-5)."
+            ]
+          },
+          "actual_state": {
+            "intent": "booking",
+            "party_size": 4,
+            "date": "2026-09-22",
+            "time": "20:00"
+          },
+          "status": "PASS",
+          "diffs": []
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "test_id": "VAL-016",
+      "category": "Weekday and calendar date inconsistency",
+      "input": "Saturday, September 21, 2026 at 7 PM for 2 people",
+      "expected_validation": {
+        "valid": false
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 2,
+        "date": null,
+        "time": "19:00"
+      },
+      "actual_validation": {
+        "valid": false,
+        "issues": [
+          "Conflicting date: stated weekday 'Saturday' conflicts with calendar date '2026-09-21' (which is a Monday)."
+        ]
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 2,
+        "date": null,
+        "time": "19:00"
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-017",
+      "category": "Past date request",
+      "input": "Book a table for 2 yesterday at 8 PM",
+      "expected_validation": {
+        "valid": false
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": 2,
+        "date": null,
+        "time": "20:00"
+      },
+      "actual_validation": {
+        "valid": false,
+        "issues": [
+          "Invalid date: booking date cannot be in the past ('yesterday', 2026-09-20)."
+        ]
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": 2,
+        "date": null,
+        "time": "20:00"
+      },
+      "status": "PASS",
+      "diffs": []
+    },
+    {
+      "test_id": "VAL-018",
+      "category": "Astronomical absurd guest count",
+      "input": "Book a table for 500000000 people tomorrow",
+      "expected_validation": {
+        "valid": false
+      },
+      "expected_state": {
+        "intent": "booking",
+        "party_size": null,
+        "date": "2026-09-22",
+        "time": null
+      },
+      "actual_validation": {
+        "valid": false,
+        "issues": [
+          "Absurd guest count: party size of 500000000 exceeds plausible restaurant booking capacity."
+        ]
+      },
+      "actual_state": {
+        "intent": "booking",
+        "party_size": null,
+        "date": "2026-09-22",
+        "time": null
+      },
+      "status": "PASS",
+      "diffs": []
+    }
+  ]
+}

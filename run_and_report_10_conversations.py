@@ -54,7 +54,7 @@ def run_eval():
                 "diffs": diffs
             }
             conv_record["turns"].append(turn_record)
-            time.sleep(1.0)
+            time.sleep(1.5)
 
         all_results.append(conv_record)
 

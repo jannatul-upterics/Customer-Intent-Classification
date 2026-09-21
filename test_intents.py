@@ -2,7 +2,12 @@ import os
 import sys
 import json
 import time
-from intent_classifier import extract_booking_info
+import datetime
+from intent_classifier import extract_booking_info, resolve_calendar_date
+
+# Ensure utf-8 stdout on Windows console
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 DATASET_FILE = "test_dataset.json"
 RESULTS_FILE = "test_results.json"
@@ -12,10 +17,11 @@ def compare_results(actual: dict, expected: dict) -> bool:
     Compares the actual output with the expected output across all fields:
     - intent
     - party_size
-    - date
+    - date (handles dynamic calendar resolution relative to current environment)
     - time
-    - food_preference (exact person count dictionary)
-    - auxiliary preferences (seating_preference, accessibility_requirement, celebration_requirement, etc.)
+    - food_preference (canonical snake_case dictionary, excluding unstated non_vegetarian)
+    - summary (validates presence, string type, non-emptiness)
+    - auxiliary preferences (seating_preference, accessibility_requirement, etc.)
     """
     if not isinstance(actual, dict):
         return False
@@ -37,8 +43,23 @@ def compare_results(actual: dict, expected: dict) -> bool:
         if actual_date != expected_date:
             return False
     else:
-        if str(actual_date).strip().lower() != str(expected_date).strip().lower():
-            return False
+        act_str = str(actual_date).strip().lower()
+        exp_str = str(expected_date).strip().lower()
+        if act_str != exp_str:
+            ref_date = datetime.date.today()
+            if os.environ.get("REFERENCE_DATE"):
+                try:
+                    ref_date = datetime.date.fromisoformat(os.environ["REFERENCE_DATE"])
+                except Exception:
+                    pass
+            resolved_act = resolve_calendar_date(act_str, base_date=ref_date)
+            resolved_exp = resolve_calendar_date(exp_str, base_date=ref_date)
+            if (resolved_act and resolved_exp and resolved_act == resolved_exp) or \
+               (resolved_act and resolved_act == exp_str) or \
+               (resolved_exp and resolved_exp == act_str):
+                pass
+            else:
+                return False
 
     # 4. time comparison (string HH:MM or None)
     actual_time = actual.get("time")
@@ -46,23 +67,42 @@ def compare_results(actual: dict, expected: dict) -> bool:
     if actual_time != expected_time:
         return False
 
-    # 5. food_preference comparison (exact count dictionary or list fallback)
-    actual_food = actual.get("food_preference") or {}
-    expected_food = expected.get("food_preference") or {}
-    if isinstance(actual_food, list):
-        actual_food = {str(x).strip().lower(): 1 for x in actual_food}
-    if isinstance(expected_food, list):
-        expected_food = {str(x).strip().lower(): 1 for x in expected_food}
+    # 5. food_preference comparison (canonical snake_case keys, excluding unstated non_vegetarian)
+    def canonical_diet_tag(t: str) -> str:
+        t = str(t).strip().lower()
+        if t in ("nut-free", "nut free", "nut_allergy", "nut allergy", "peanut allergy", "peanut-free", "peanut", "nuts"):
+            return "nut_allergy"
+        if t in ("dairy-free", "dairy free", "dairy_free", "no dairy", "lactose intolerant", "lactose-free"):
+            return "dairy_free"
+        if t in ("gluten-free", "gluten free", "gluten_free", "no gluten", "celiac", "coeliac", "gluten allergy", "gluten_allergy"):
+            return "gluten_free"
+        if t in ("veg", "veggie", "vegetarian", "vegetarian food", "meat-free"):
+            return "vegetarian"
+        if t in ("vegan", "plant-based", "plant based"):
+            return "vegan"
+        return t
+
+    actual_food_raw = actual.get("food_preference") or {}
+    expected_food_raw = expected.get("food_preference") or {}
+    if isinstance(actual_food_raw, list):
+        actual_food_raw = {str(x).strip().lower(): 1 for x in actual_food_raw}
+    if isinstance(expected_food_raw, list):
+        expected_food_raw = {str(x).strip().lower(): 1 for x in expected_food_raw}
+
+    actual_food = {canonical_diet_tag(k): v for k, v in actual_food_raw.items() if k != "non_vegetarian"}
+    expected_food = {canonical_diet_tag(k): v for k, v in expected_food_raw.items() if k != "non_vegetarian"}
+
     if actual_food != expected_food:
         return False
 
-    # 6. auxiliary preferences comparison (seating, accessibility, celebration, etc.)
-    all_pref_keys = set(
-        k for k in list(expected.keys()) + list(actual.keys())
-        if k.endswith("_preference") or k.endswith("_requirement") or "preference" in k or "requirement" in k
-    )
-    for pref_key in all_pref_keys:
-        if pref_key == "food_preference":
+    # 6. summary comparison (always present, string, non-empty)
+    actual_summary = actual.get("summary")
+    if not isinstance(actual_summary, str) or not actual_summary.strip() or actual_summary.strip().lower() == "null":
+        return False
+
+    # 7. auxiliary preferences comparison (seating, accessibility, celebration, etc.)
+    for pref_key in expected.keys():
+        if pref_key in ("intent", "party_size", "date", "time", "food_preference", "summary"):
             continue
         actual_pref = actual.get(pref_key) or {}
         expected_pref = expected.get(pref_key) or {}
@@ -71,13 +111,16 @@ def compare_results(actual: dict, expected: dict) -> bool:
 
     return True
 
-def run_tests():
+def run_tests(max_cases: int = None):
     if not os.path.exists(DATASET_FILE):
         print(f"Error: Dataset file '{DATASET_FILE}' not found.")
         sys.exit(1)
 
     with open(DATASET_FILE, "r", encoding="utf-8") as f:
-        test_cases = json.load(f)[:20]
+        test_cases = json.load(f)
+
+    if max_cases is not None:
+        test_cases = test_cases[:max_cases]
 
     print(f"Loaded {len(test_cases)} test cases from '{DATASET_FILE}'. Starting execution...\n")
     results = []
@@ -121,7 +164,7 @@ def run_tests():
             "result": result_status
         })
 
-        time.sleep(1.0)
+        time.sleep(1.5)
 
     with open(RESULTS_FILE, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=4)

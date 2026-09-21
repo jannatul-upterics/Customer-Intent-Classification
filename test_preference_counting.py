@@ -27,7 +27,7 @@ class TestPreferenceCountingNormalization(unittest.TestCase):
     """Test Python-level validation and normalization of preference counts."""
 
     def test_example_1_food_partial(self):
-        """Table for 5, 1 vegetarian -> vegetarian: 1, non_vegetarian: 4."""
+        """Table for 5, 1 vegetarian -> vegetarian: 1 (non_vegetarian not invented)."""
         raw = {
             "intent": "booking",
             "party_size": 5,
@@ -37,7 +37,8 @@ class TestPreferenceCountingNormalization(unittest.TestCase):
         }
         res = normalize_booking_data(raw)
         self.assertEqual(res["party_size"], 5)
-        self.assertEqual(res["food_preference"], {"vegetarian": 1, "non_vegetarian": 4})
+        self.assertEqual(res["food_preference"], {"vegetarian": 1})
+        self.assertNotIn("non_vegetarian", res["food_preference"])
 
     def test_example_2_seating_partial(self):
         """Party of 6, 2 window -> seating_preference: {'window': 2} (must NOT be 6)."""
@@ -78,7 +79,8 @@ class TestPreferenceCountingNormalization(unittest.TestCase):
         }
         res = normalize_booking_data(raw)
         self.assertEqual(res["party_size"], 6)
-        self.assertEqual(res["food_preference"], {"vegetarian": 2, "non_vegetarian": 4})
+        self.assertEqual(res["food_preference"], {"vegetarian": 2})
+        self.assertNotIn("non_vegetarian", res["food_preference"])
         self.assertEqual(res["accessibility_requirement"], {"wheelchair_access": 1})
         self.assertEqual(res["seating_preference"], {"window": 3})
 
@@ -184,7 +186,8 @@ class TestLiveLLMPreferenceCounting(unittest.TestCase):
         self.assertEqual(res.get("party_size"), 5)
         food = res.get("food_preference", {})
         self.assertEqual(food.get("vegetarian"), 1)
-        self.assertEqual(food.get("non_vegetarian"), 4)
+        self.assertNotIn("non_vegetarian", food)
+        self.assertTrue(isinstance(res.get("summary"), str) and len(res.get("summary")) > 0)
 
     def test_llm_example_2_seating(self):
         """Input: 'We are 6 people. Two of us would like window seating.'"""
@@ -192,6 +195,7 @@ class TestLiveLLMPreferenceCounting(unittest.TestCase):
         self.assertEqual(res.get("party_size"), 6)
         seating = res.get("seating_preference", {})
         self.assertEqual(seating.get("window"), 2)
+        self.assertTrue(isinstance(res.get("summary"), str) and len(res.get("summary")) > 0)
 
     def test_llm_example_3_accessibility(self):
         """Input: 'There will be 5 of us, but one guest uses a wheelchair.'"""
@@ -199,22 +203,24 @@ class TestLiveLLMPreferenceCounting(unittest.TestCase):
         self.assertEqual(res.get("party_size"), 5)
         acc = res.get("accessibility_requirement", {})
         self.assertEqual(acc.get("wheelchair_access"), 1)
+        self.assertTrue(isinstance(res.get("summary"), str) and len(res.get("summary")) > 0)
 
     def test_llm_example_4_multiple_preferences(self):
         """Input: 'We are 6 people. Two are vegetarian, one needs wheelchair access, and three would prefer a window table.'"""
         res = extract_booking_info("We are 6 people. Two are vegetarian, one needs wheelchair access, and three would prefer a window table.")
         self.assertEqual(res.get("party_size"), 6)
         self.assertEqual(res.get("food_preference", {}).get("vegetarian"), 2)
-        self.assertEqual(res.get("food_preference", {}).get("non_vegetarian"), 4)
+        self.assertNotIn("non_vegetarian", res.get("food_preference", {}))
         self.assertEqual(res.get("accessibility_requirement", {}).get("wheelchair_access"), 1)
         self.assertEqual(res.get("seating_preference", {}).get("window"), 3)
+        self.assertTrue(isinstance(res.get("summary"), str) and len(res.get("summary")) > 0)
 
     def test_llm_multi_turn_conversation_changes(self):
         """
         Customer: 'We are 5 people. One person is vegetarian.'
-        State: party_size: 5, vegetarian: 1, non_vegetarian: 4
+        State: party_size: 5, vegetarian: 1
         Customer: 'Actually, two people are vegetarian.'
-        Updated state: party_size: 5, vegetarian: 2, non_vegetarian: 3
+        Updated state: party_size: 5, vegetarian: 2
         Customer: 'Actually, all of us are vegetarian.'
         Updated state: party_size: 5, vegetarian: 5
         """
@@ -234,6 +240,29 @@ class TestLiveLLMPreferenceCounting(unittest.TestCase):
         self.assertEqual(t3.get("party_size"), 5)
         self.assertEqual(t3.get("food_preference", {}).get("vegetarian"), 5)
         self.assertNotIn("non_vegetarian", t3.get("food_preference", {}))
+
+    def test_food_preference_normalization_synonym_combination(self):
+        """Input: 'Book a table for 2, one is veg and one is vegetarian.' -> {'vegetarian': 2}"""
+        res = extract_booking_info("Book a table for 2, one is veg and one is vegetarian.")
+        self.assertEqual(res.get("party_size"), 2)
+        self.assertEqual(res.get("food_preference", {}), {"vegetarian": 2})
+
+    def test_food_preference_normalization_vegan_plant_based(self):
+        """Input: 'We have 3 people, two want plant-based food and one is vegan.' -> {'vegan': 3}"""
+        res = extract_booking_info("We have 3 people, two want plant-based food and one is vegan.")
+        self.assertEqual(res.get("party_size"), 3)
+        self.assertEqual(res.get("food_preference", {}), {"vegan": 3})
+
+    def test_food_preference_normalization_gluten_free(self):
+        """Input: 'One guest is gluten free and another has a gluten allergy.' -> {'gluten_free': 2}"""
+        res = extract_booking_info("One guest is gluten free and another has a gluten allergy.")
+        self.assertEqual(res.get("food_preference", {}).get("gluten_free"), 2)
+
+    def test_food_preference_distinct_categories(self):
+        """Input: 'We have 4 guests. Two are vegetarian and one is vegan.' -> {'vegetarian': 2, 'vegan': 1}"""
+        res = extract_booking_info("We have 4 guests. Two are vegetarian and one is vegan.")
+        self.assertEqual(res.get("party_size"), 4)
+        self.assertEqual(res.get("food_preference", {}), {"vegetarian": 2, "vegan": 1})
 
 
 if __name__ == "__main__":
