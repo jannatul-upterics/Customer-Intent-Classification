@@ -82,8 +82,7 @@
           "date": "2026-09-25",
           "time": "19:30",
           "food_preference": {
-            "gluten-free": 1,
-            "non_vegetarian": 3
+            "gluten_free": 1
           }
         },
         "status": "PASS",
@@ -111,7 +110,7 @@
           "party_size": 8,
           "date": "2026-09-26",
           "time": "20:00",
-          "food_preference": [],
+          "food_preference": {},
           "celebration_requirement": {
             "birthday": 1
           }
@@ -134,7 +133,7 @@
           "party_size": 10,
           "date": "2026-09-26",
           "time": "20:00",
-          "food_preference": [],
+          "food_preference": {},
           "celebration_requirement": {
             "birthday": 1
           }
@@ -160,8 +159,7 @@
           "date": "2026-09-26",
           "time": "20:00",
           "food_preference": {
-            "halal": 1,
-            "non_vegetarian": 9
+            "halal": 1
           },
           "celebration_requirement": {
             "birthday": 1
@@ -192,7 +190,7 @@
           "party_size": 2,
           "date": "2026-09-24",
           "time": "20:00",
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -212,7 +210,7 @@
           "party_size": 2,
           "date": "2026-09-25",
           "time": "20:00",
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -237,9 +235,9 @@
         "actual": {
           "intent": "booking",
           "party_size": 5,
-          "date": "2026-09-22",
+          "date": "2026-09-25",
           "time": "18:30",
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -257,9 +255,9 @@
         "actual": {
           "intent": "booking",
           "party_size": 5,
-          "date": "2026-09-22",
+          "date": "2026-09-25",
           "time": "20:00",
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -286,10 +284,7 @@
           "party_size": 3,
           "date": "2026-09-27",
           "time": "13:00",
-          "food_preference": [],
-          "seating_preference": {
-            "booth": 3
-          }
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -312,11 +307,7 @@
           "date": "2026-09-27",
           "time": "13:00",
           "food_preference": {
-            "nut-free": 1,
-            "non_vegetarian": 2
-          },
-          "seating_preference": {
-            "booth": 3
+            "nut_allergy": 1
           }
         },
         "status": "PASS",
@@ -341,12 +332,9 @@
           "date": "2026-09-27",
           "time": "13:00",
           "food_preference": {
-            "nut-free": 1,
-            "non_vegetarian": 1,
-            "vegetarian": 1
-          },
-          "seating_preference": {
-            "booth": 3
+            "nut_allergy": 1,
+            "vegetarian": 1,
+            "non_vegetarian": 1
           }
         },
         "status": "PASS",
@@ -377,8 +365,7 @@
           "date": "2026-09-23",
           "time": "19:00",
           "food_preference": {
-            "dairy-free": 1,
-            "non_vegetarian": 3
+            "dairy_free": 2
           }
         },
         "status": "PASS",
@@ -426,7 +413,7 @@
           "party_size": 2,
           "date": null,
           "time": null,
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -444,9 +431,9 @@
         "actual": {
           "intent": "booking",
           "party_size": 2,
-          "date": "2026-09-21",
+          "date": "2026-09-24",
           "time": null,
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -464,9 +451,9 @@
         "actual": {
           "intent": "booking",
           "party_size": 2,
-          "date": "2026-09-21",
+          "date": "2026-09-24",
           "time": "21:00",
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -486,11 +473,10 @@
         "actual": {
           "intent": "booking",
           "party_size": 2,
-          "date": "2026-09-21",
+          "date": "2026-09-24",
           "time": "21:00",
           "food_preference": {
-            "kosher": 1,
-            "non_vegetarian": 1
+            "kosher": 2
           }
         },
         "status": "PASS",
@@ -605,7 +591,7 @@
           "party_size": 4,
           "date": null,
           "time": null,
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -625,7 +611,7 @@
           "party_size": 4,
           "date": "2026-09-26",
           "time": "20:00",
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -645,7 +631,7 @@
           "party_size": 4,
           "date": "2026-09-26",
           "time": "19:00",
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -665,7 +651,7 @@
           "party_size": 3,
           "date": "2026-09-26",
           "time": "19:00",
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -692,7 +678,7 @@
           "party_size": 6,
           "date": "2026-09-27",
           "time": "12:30",
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -712,7 +698,7 @@
           "party_size": 6,
           "date": "2026-09-27",
           "time": "12:30",
-          "food_preference": []
+          "food_preference": {}
         },
         "status": "PASS",
         "diffs": []
@@ -732,7 +718,119 @@
           "party_size": 6,
           "date": "2026-09-27",
           "time": "12:30",
-          "food_preference": []
+          "food_preference": {}
+        },
+        "status": "PASS",
+        "diffs": []
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-011",
+    "title": "Dietary Substitution from Vegetarian to Vegan",
+    "primary_focus": "Dietary substitution vs addition",
+    "turns": [
+      {
+        "turn_id": 1,
+        "message": "Can we book a table for 2 people tomorrow at 7:00 PM? One person is vegetarian.",
+        "expected": {
+          "intent": "booking",
+          "party_size": 2,
+          "date": "tomorrow",
+          "time": "19:00",
+          "food_preference": [
+            "vegetarian"
+          ]
+        },
+        "actual": {
+          "intent": "booking",
+          "party_size": 2,
+          "date": "2026-09-25",
+          "time": "19:00",
+          "food_preference": {
+            "vegetarian": 1,
+            "non_vegetarian": 1
+          }
+        },
+        "status": "PASS",
+        "diffs": []
+      },
+      {
+        "turn_id": 2,
+        "message": "Actually, make it vegan instead of vegetarian.",
+        "expected": {
+          "intent": "booking",
+          "party_size": 2,
+          "date": "tomorrow",
+          "time": "19:00",
+          "food_preference": [
+            "vegan"
+          ]
+        },
+        "actual": {
+          "intent": "booking",
+          "party_size": 2,
+          "date": "2026-09-25",
+          "time": "19:00",
+          "food_preference": {
+            "vegan": 1,
+            "non_vegetarian": 1
+          }
+        },
+        "status": "PASS",
+        "diffs": []
+      }
+    ]
+  },
+  {
+    "conversation_id": "CONV-012",
+    "title": "Comprehensive Multi-Parameter Overhaul",
+    "primary_focus": "Multiple simultaneous parameter updates",
+    "turns": [
+      {
+        "turn_id": 1,
+        "message": "I need a reservation for 5 guests on Monday at 6:00 PM. One person has celiac disease so needs gluten-free.",
+        "expected": {
+          "intent": "booking",
+          "party_size": 5,
+          "date": "Monday",
+          "time": "18:00",
+          "food_preference": [
+            "gluten-free"
+          ]
+        },
+        "actual": {
+          "intent": "booking",
+          "party_size": 5,
+          "date": "2026-09-28",
+          "time": "18:00",
+          "food_preference": {
+            "gluten_free": 1
+          }
+        },
+        "status": "PASS",
+        "diffs": []
+      },
+      {
+        "turn_id": 2,
+        "message": "Sorry, our schedule completely changed! Could we make it 8 guests at 8:00 PM on Tuesday instead?",
+        "expected": {
+          "intent": "booking",
+          "party_size": 8,
+          "date": "Tuesday",
+          "time": "20:00",
+          "food_preference": [
+            "gluten-free"
+          ]
+        },
+        "actual": {
+          "intent": "booking",
+          "party_size": 8,
+          "date": "2026-09-29",
+          "time": "20:00",
+          "food_preference": {
+            "gluten_free": 1
+          }
         },
         "status": "PASS",
         "diffs": []

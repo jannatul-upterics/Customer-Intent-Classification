@@ -255,6 +255,111 @@ def resolve_calendar_date(raw_date: Optional[str], base_date: Optional[datetime.
 
     return None
 
+def extract_explicit_party_size(message: Optional[str]) -> Optional[int]:
+    """
+    Extracts an explicit total party size / guest count from customer message text.
+    Returns integer guest count if explicitly mentioned, or None.
+    Examples:
+    - "there will be 6 people, 2 are vegetarian" -> 6
+    - "5 people, 2 vegetarian" -> 5
+    - "table for 4" -> 4
+    - "party of 5" -> 5
+    - "make it 6 people" -> 6
+    """
+    if not message:
+        return None
+    msg_lower = message.lower()
+    word_to_num = {
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+        "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12
+    }
+    num_pattern = r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
+
+    patterns = [
+        rf"\b(?:table|booth|party|reservation|seats?)\s+(?:for|of)\s+({num_pattern})\b",
+        rf"\b(?:there\s+will\s+be|we\s+are|we\s+have)\s+({num_pattern})\s*(?:people|guests|persons|diners|seats|of\s+us)?\b",
+        rf"\b({num_pattern})\s+(?:people|guests|persons|diners|seats|of\s+us)\b",
+        rf"\b(?:make\s+it|make\s+that)\s+(?:a\s+table\s+for\s+)?({num_pattern})\s*(?:people|guests|persons|diners|seats)?\b",
+    ]
+    for p in patterns:
+        m = re.search(p, msg_lower)
+        if m:
+            val_str = m.group(1).lower()
+            if val_str.isdigit():
+                val = int(val_str)
+                if val > 0:
+                    return val
+            if val_str in word_to_num:
+                return word_to_num[val_str]
+    return None
+
+def extract_food_preference_counts(message: Optional[str]) -> Dict[str, int]:
+    """
+    Generic extraction of food preference headcounts from message text.
+    Handles patterns like:
+    - 'veg 2', 'non veg 4', 'vegetarian for 3'
+    - '2 veg', '4 non-vegetarian', '2 vegetarian and 3 non-vegetarian'
+    - '3 veg + 2 non veg'
+    """
+    if not message:
+        return {}
+
+    results = {}
+    msg_lower = message.lower()
+
+    diet_terms = {
+        "non-vegetarian": "non_vegetarian",
+        "non vegetarian": "non_vegetarian",
+        "non-veg": "non_vegetarian",
+        "non veg": "non_vegetarian",
+        "vegetarian": "vegetarian",
+        "veg": "vegetarian",
+        "veggie": "vegetarian",
+        "vegan": "vegan",
+        "gluten-free": "gluten_free",
+        "gluten free": "gluten_free",
+        "dairy-free": "dairy_free",
+        "dairy free": "dairy_free",
+        "nut-free": "nut_allergy",
+        "halal": "halal",
+        "kosher": "kosher",
+        "pescatarian": "pescatarian"
+    }
+
+    sorted_terms = sorted(diet_terms.keys(), key=len, reverse=True)
+    terms_pattern = "|".join(re.escape(t) for t in sorted_terms)
+
+    word_to_num = {
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+        "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+        "another": 1, "other": 1
+    }
+    num_pattern = r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|another|other)"
+
+    def parse_num(s: str) -> Optional[int]:
+        s = s.strip().lower()
+        if s.isdigit():
+            return int(s)
+        return word_to_num.get(s)
+
+    # Pattern A: <num> <diet_term> (e.g. "2 veg", "4 non vegetarian", "3 veg + 2 non veg", "2 are vegetarian", "another has a gluten allergy")
+    for m in re.finditer(rf"\b({num_pattern})\s*(?:people\s+are\s+|guests?\s+(?:are|is)\s+|are\s+|is\s+|has\s+(?:a\s+)?|with\s+(?:a\s+)?|of\s+(?:them|us)\s+are\s+)?({terms_pattern})\b", msg_lower):
+        cnt = parse_num(m.group(1))
+        term = m.group(2)
+        canon = diet_terms[term]
+        if cnt and cnt > 0:
+            results[canon] = results.get(canon, 0) + cnt
+
+    # Pattern B: <diet_term> (for) <num> (e.g. "veg 2", "non veg 4", "vegetarian for 3")
+    for m in re.finditer(rf"\b({terms_pattern})\s+(?:for\s+)?({num_pattern})\b", msg_lower):
+        term = m.group(1)
+        cnt = parse_num(m.group(2))
+        canon = diet_terms[term]
+        if cnt and cnt > 0 and canon not in results:
+            results[canon] = cnt
+
+    return results
+
 # ---------------------------------------------------------------------------
 # Improved Extraction System Prompt
 # ---------------------------------------------------------------------------
@@ -262,7 +367,10 @@ SYSTEM_PROMPT = """You are an expert Natural Language Understanding (NLU) extrac
 
 The output JSON must contain exactly these 6 fields:
 1. "intent": The customer's primary objective ("booking", "inquiry", "cancellation", "modification"). If the customer is requesting, initiating, or asking to reserve a table, classify as "booking". If asking questions without booking, classify as "inquiry". If cancelling, classify as "cancellation". If modifying an existing reservation, classify as "modification".
-2. "party_size": Total number of dining guests as an integer. Accurately interpret phrases such as "two people", "table for 4", "party of 5", "me and 3 buddies" (4), "a couple" (2), "just myself" (1), "make it 6 people instead" (6). If the guest count is not explicitly mentioned, ambiguous, or non-positive (e.g. 0), set to null. Never guess or assume party size.
+2. "party_size": Total number of dining guests as an integer. Accurately interpret phrases such as "two people", "table for 4", "party of 5", "me and 3 buddies" (4), "a couple" (2), "just myself" (1), "make it 6 people instead" (6).
+   - If total party size is not explicitly mentioned but explicit food preference counts are provided (e.g., "veg 2" -> 2, "2 veg" -> 2, "vegetarian for 3" -> 3, "non veg 4" -> 4, "4 non vegetarian" -> 4, "2 vegetarian and 3 non-vegetarian" -> 5, "3 veg + 2 non veg" -> 5), infer "party_size" as the sum of those explicit food preference counts.
+   - Priority Rule: If the customer explicitly mentions a total party size (e.g. "there will be 6 people, 2 are vegetarian", "5 people, 2 vegetarian", "table for 4, 2 veg"), that explicit party size strictly takes priority (e.g., party_size: 6, not 2).
+   - If the guest count is not explicitly mentioned or inferred from food preferences, ambiguous, or non-positive (e.g. 0), set to null. Never guess or assume party size.
 3. "date": The requested booking date resolved strictly into "YYYY-MM-DD" format.
    CRITICAL DATE EXTRACTION & RESOLUTION RULES:
    - Base the calculation dynamically on today's reference date provided in the message prompt.
@@ -308,6 +416,9 @@ The output JSON must contain exactly these 6 fields:
        Normalize "no seafood", "seafood-free", "without seafood", "seafood allergy" -> "no_seafood".
      * "pescatarian":
        Normalize "pescatarian", "pescetarian" -> "pescatarian".
+     * "non_vegetarian":
+       Treat the following as the same category: "non-vegetarian", "non vegetarian", "non-veg", "non veg", "non_veg", "meat-eater", "meat eater".
+       Normalize all of these to: "non_vegetarian" when explicitly mentioned or requested by the customer.
 
    - Food Preference Normalization Rules:
      1. Normalize equivalent words and phrases to one canonical category.
@@ -318,7 +429,7 @@ The output JSON must contain exactly these 6 fields:
       6. Maintain the existing preference-counting logic:
          - When a dietary preference applies to all guests in the party (e.g. "all of us are vegetarian", "all halal", "everyone is vegan", "all 4 of us"), assign the full party size to that preference (e.g. party_size=2, "all halal" -> {"halal": 2}).
          - Singular references to one person ("someone", "somebody", "one guest", "one person", "one of us", "a guest", "a friend") explicitly denote a count of 1.
-      7. If multiple guests have the same normalized preference, combine their counts (e.g. two are veg and one is vegetarian -> {"vegetarian": 3}; one is vegan and another wants plant-based -> {"vegan": 2}).
+      7. If multiple guests have the same normalized preference, combine their counts (e.g. two are veg and one is vegetarian -> {"vegetarian": 3}; one is vegan and another wants plant-based -> {"vegan": 2}; one guest is gluten free and another has a gluten allergy -> {"gluten_free": 2}).
       8. If the number of guests with a preference is not specified and does not say "all", do not invent a count (use null).
       9. Preserve the distinction between dietary preferences and allergies.
       10. Use lowercase snake_case for all standardized preference keys.
@@ -392,6 +503,18 @@ Output:
 Customer Input: "Please cancel any booking request under my name."
 Output:
 {"intent": "cancellation", "party_size": null, "date": null, "time": null, "food_preference": {}, "summary": "Customer wants to cancel their reservation."}
+
+Customer Input: "non veg 5"
+Output:
+{"intent": "booking", "party_size": 5, "date": null, "time": null, "food_preference": {"non_vegetarian": 5}, "summary": "Customer requested 5 non-vegetarian meals."}
+
+Customer Input: "all non-veg make it"
+Output:
+{"intent": "booking", "party_size": null, "date": null, "time": null, "food_preference": {"non_vegetarian": null}, "summary": "Customer wants all guests to be non-vegetarian."}
+
+Customer Input: "change it I want all non-vegetarian"
+Output:
+{"intent": "booking", "party_size": null, "date": null, "time": null, "food_preference": {"non_vegetarian": null}, "summary": "Customer wants to change preference to all non-vegetarian."}
 """
 
 # ---------------------------------------------------------------------------
@@ -434,12 +557,17 @@ Output Fields:
 Strict Dialogue State Tracking & Preference Counting Rules:
 1. ONLY update an existing field when the customer explicitly provides a new value for that field.
 2. CRITICAL RULE FOR PARTY SIZE & PREFERENCE HEADCOUNTS:
-   - Only update "party_size" when the customer explicitly states a new total guest count (e.g., "Actually, make it 6", "make that 10 people", "party of 5 instead", "just 3 of us now", "two more people want to join. Make that 6").
-   - Do NOT infer, calculate, increment, or change "party_size" simply because the customer mentions a colleague, friend, family member, guest, or another person's preference (e.g., "one person is vegetarian", "my colleague has a severe peanut allergy", "and another colleague is vegetarian", "two of our guests are dairy-free"). In all these cases, party_size remains strictly unchanged!
-   - Adding a preference MUST update that preference's object WITHOUT changing "party_size".
+   - If "party_size" is currently null in the state and the customer provides explicit food-preference counts (e.g., "veg 2" -> party_size: 2, "2 veg" -> party_size: 2, "vegetarian for 3" -> party_size: 3, "non veg 4" -> party_size: 4, "4 non vegetarian" -> party_size: 4, "2 vegetarian and 3 non-vegetarian" -> party_size: 5, "3 veg + 2 non veg" -> party_size: 5), infer "party_size" as the sum of those explicit food-preference counts!
+   - Priority Rule: If the customer explicitly provides a total party size (e.g., "there will be 6 people, 2 are vegetarian", "5 people, 2 vegetarian", "table for 4, 2 veg"), that explicit total party size strictly takes priority (e.g., party_size: 6, not 2).
+   - Only update an already established "party_size" when the customer explicitly states a new total guest count (e.g., "Actually, make it 6", "make that 10 people", "party of 5 instead", "just 3 of us now", "two more people want to join. Make that 6").
+   - When party_size is already known: Do NOT infer, calculate, increment, or change "party_size" simply because the customer mentions a colleague, friend, family member, guest, or another person's preference (e.g., "one person is vegetarian", "my colleague has a severe peanut allergy", "and another colleague is vegetarian", "two of our guests are dairy-free"). In all these cases, party_size remains strictly unchanged!
+   - Adding a preference MUST update that preference's object WITHOUT changing an already established "party_size".
 3. PREFERENCE COUNTING, ADDITION & SUBSTITUTION:
-   - Incremental Addition: When customer mentions a dietary requirement (e.g., "My colleague has a severe peanut allergy" -> {"nut-free": 1}), and in the next turn adds another (e.g., "And another colleague is vegetarian"), ACCUMULATE both: {"nut-free": 1, "vegetarian": 1, "non_vegetarian": remainder}.
-   - Substitution: When customer changes or replaces a dietary requirement (e.g., "Actually, make it vegan instead of vegetarian" or "Actually, make it vegan"), REPLACE the prior requirement so only the new requirement remains. Do not keep the previous one unless customer explicitly asked for both.
+   - Incremental Addition: When customer mentions an additional dietary requirement (e.g., "My colleague has a severe peanut allergy" -> {"nut-free": 1}), and in the next turn adds another (e.g., "And another colleague is vegetarian"), ACCUMULATE both: {"nut-free": 1, "vegetarian": 1}.
+   - Substitution & Correction: When customer changes, corrects, or replaces a preference or slot (e.g., "Actually, make it vegan instead of vegetarian", "sorry all non-veg", "all non-veg make it", "non veg 5", "change it I want all non-vegetarian", "actually 4 vegetarian and 1 non-vegetarian", "make it 8:30 PM", "actually Sunday", "actually 6 people"), REPLACE the prior conflicting value so only the new value remains!
+     * If customer previously specified vegetarian and later specifies non-vegetarian (e.g. "non veg 5", "all non-veg", "sorry all non-veg", "change it I want all non-vegetarian"), REMOVE the previous vegetarian value and set non_vegetarian.
+     * If customer previously specified non-vegetarian and later specifies vegetarian (e.g. "all vegetarian", "sorry all veg", "make it 5 vegetarian"), REMOVE non_vegetarian and set vegetarian.
+     * When new counts or "all" preference cover the party, replace prior food preferences rather than accumulating them.
    - Removal: When customer explicitly clears or cancels dietary requirements (e.g., "Actually, scratch that - the dairy-free guests aren't coming anymore, so no dietary requirements for the table" or "Actually, no dietary requirements"), reset "food_preference" to {}.
    - Recalculate "non_vegetarian" = party_size - sum(restrictions). If sum(restrictions) >= party_size, omit "non_vegetarian".
 4. DATE & TIME MULTI-TURN UPDATES:
@@ -471,6 +599,34 @@ Updated State: {"intent": "booking", "party_size": 5, "date": "2026-09-19", "tim
 Current State: {"intent": "booking", "party_size": 5, "date": "2026-09-19", "time": "20:00", "food_preference": {"vegetarian": 2, "non_vegetarian": 3}}
 Customer Message: "Actually, all of us are vegetarian."
 Updated State: {"intent": "booking", "party_size": 5, "date": "2026-09-19", "time": "20:00", "food_preference": {"vegetarian": 5}}
+
+Current State: {"intent": "booking", "party_size": 5, "date": "2027-05-08", "time": null, "food_preference": {"vegetarian": 5}}
+Customer Message: "all non-veg make it"
+Updated State: {"intent": "booking", "party_size": 5, "date": "2027-05-08", "time": null, "food_preference": {"non_vegetarian": 5}}
+
+Current State: {"intent": "booking", "party_size": 5, "date": "2027-05-08", "time": null, "food_preference": {"vegetarian": 5}}
+Customer Message: "sorry all non-veg"
+Updated State: {"intent": "booking", "party_size": 5, "date": "2027-05-08", "time": null, "food_preference": {"non_vegetarian": 5}}
+
+Current State: {"intent": "booking", "party_size": 5, "date": "2027-05-08", "time": null, "food_preference": {"vegetarian": 5}}
+Customer Message: "non veg 5"
+Updated State: {"intent": "booking", "party_size": 5, "date": "2027-05-08", "time": null, "food_preference": {"non_vegetarian": 5}}
+
+Current State: {"intent": "booking", "party_size": 5, "date": "2027-05-08", "time": null, "food_preference": {"vegetarian": 5}}
+Customer Message: "change it I want all non-vegetarian"
+Updated State: {"intent": "booking", "party_size": 5, "date": "2027-05-08", "time": null, "food_preference": {"non_vegetarian": 5}}
+
+Current State: {"intent": "booking", "party_size": 5, "date": "2027-05-08", "time": null, "food_preference": {"vegetarian": 3, "non_vegetarian": 2}}
+Customer Message: "actually 4 vegetarian and 1 non-vegetarian"
+Updated State: {"intent": "booking", "party_size": 5, "date": "2027-05-08", "time": null, "food_preference": {"vegetarian": 4, "non_vegetarian": 1}}
+
+Current State: {"intent": "booking", "party_size": 4, "date": "2026-09-19", "time": "20:00"}
+Customer Message: "make it 8:30 PM"
+Updated State: {"intent": "booking", "party_size": 4, "date": "2026-09-19", "time": "20:30"}
+
+Current State: {"intent": "booking", "party_size": 4, "date": "2026-09-19", "time": "20:00"}
+Customer Message: "actually Sunday"
+Updated State: {"intent": "booking", "party_size": 4, "date": "2026-09-20", "time": "20:00"}
 
 Current State: {"intent": "booking", "party_size": 2, "date": "2026-09-17", "time": null}
 Customer Message: "Is 9:00 PM open?"
@@ -810,7 +966,8 @@ def normalize_booking_data(data: dict, base_date: Optional[datetime.date] = None
     date_val = data.get("date")
 
     # Handle mid-sentence self-corrections, explicit changes, or weekday mentions if message is provided
-    if message:
+    is_already_iso = bool(date_val and re.match(r"^\d{4}-\d{2}-\d{2}$", str(date_val).strip()))
+    if message and not is_already_iso:
         m_change = re.search(r"\b(?:change|switch|move|reschedule)(?:\s+the)?\s+(?:date|day)\s+to\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", message, re.IGNORECASE)
         m_corr = re.search(r"\b(?:sorry|wait|actually|make\s+that|meant)\s+(?:i\s+meant\s+)?(?:on\s+|for\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+instead\b", message, re.IGNORECASE)
         m_this = re.search(r"\bthis\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", message, re.IGNORECASE)
@@ -904,16 +1061,68 @@ def normalize_booking_data(data: dict, base_date: Optional[datetime.date] = None
                 else:
                     normalized_food[clean_tag] = 1
 
+    # If intent was classified as inquiry but message is a booking instruction (e.g. "all non-veg make it")
+    if message and intent_val == "inquiry":
+        is_negated_booking = bool(re.search(r"\b(?:don't|do not|no longer|stop|not|never)\s+(?:want\s+to\s+)?(?:book|reserve)\b", message, re.IGNORECASE))
+        has_question = "?" in message or bool(re.search(r"\b(?:hours|menu|parking|cost|price|location|where|when\s+are|do\s+you|can\s+you|could\s+you|what\s+is|what\s+are|offer|takeout|catering)\b", message, re.IGNORECASE))
+        if not is_negated_booking and not has_question:
+            if re.search(r"\b(?:make\s+it|make\s+that|reserve\s+(?:a|for)|book\s+(?:a|for)|table\s+for|booth\s+for|seats?\s+for)\b", message, re.IGNORECASE):
+                intent_val = "booking"
+                result["intent"] = "booking"
+
     # Check if message explicitly mentions singular person ("someone", "somebody", "one guest", "one of us")
     # or all guests ("all", "all of us", "everyone", "everybody") with a preference whose count is currently None
     if message and normalized_food:
         for pref_key, count_val in list(normalized_food.items()):
-            if count_val is None and pref_key != "non_vegetarian":
+            if count_val is None:
                 if re.search(r"\b(?:all|everyone|everybody|all\s+of\s+us|entire\s+party|whole\s+party|all\s+meals?)\b", message, re.IGNORECASE) and party_size:
                     normalized_food[pref_key] = party_size
                 elif re.search(r"\b(?:someone|somebody|a\s+guest|one\s+guest|one\s+of\s+us|a\s+person|one\s+person)\b", message, re.IGNORECASE):
                     if not re.search(r"\bsome\s+(?:guests|people|of\s+our\s+guests|friends)\b", message, re.IGNORECASE):
                         normalized_food[pref_key] = 1
+
+    # Deterministic fallback for explicit non-veg mentions if LLM missed it
+    if message and not normalized_food:
+        m_nv = re.search(r"\b(?:all|everyone|everybody)\s+(?:of\s+us\s+are\s+)?(?:non-veg|non-vegetarian|non\s+veg)\b|\b(?:non-veg|non-vegetarian|non\s+veg)\s+(?:for\s+all|all)\b", message, re.IGNORECASE)
+        m_nv_num = re.search(r"\b(?:non-veg|non-vegetarian|non\s+veg)\s+(\d+)\b|\b(\d+)\s+(?:non-veg|non-vegetarian|non\s+veg)\b", message, re.IGNORECASE)
+        if m_nv and party_size:
+            normalized_food["non_vegetarian"] = party_size
+        elif m_nv_num:
+            nv_count = int(m_nv_num.group(1) or m_nv_num.group(2))
+            normalized_food["non_vegetarian"] = nv_count if party_size is None else min(nv_count, party_size)
+        elif re.search(r"\b(?:non-veg|non-vegetarian|non\s+veg)\b", message, re.IGNORECASE):
+            if re.search(r"\b(?:all|everyone|everybody)\b", message, re.IGNORECASE) and party_size:
+                normalized_food["non_vegetarian"] = party_size
+            elif party_size:
+                normalized_food["non_vegetarian"] = party_size
+
+    # Deterministic fallback for explicit food preference counts if LLM missed it
+    if message and not normalized_food:
+        extracted_food = extract_food_preference_counts(message)
+        if extracted_food:
+            normalized_food.update(extracted_food)
+
+    # Priority rule: If customer explicitly provides a total party size in the message, that value MUST take priority.
+    if party_size is None and message:
+        explicit_ps = extract_explicit_party_size(message)
+        if explicit_ps is not None and explicit_ps > 0:
+            party_size = explicit_ps
+
+    # Generic party-size inference from explicit food-preference counts:
+    # If party_size == null and customer provides explicit food-preference counts,
+    # infer party_size from the sum of those counts (e.g. "veg 2" -> 2, "2 veg" -> 2, "3 veg + 2 non veg" -> 5).
+    if party_size is None and normalized_food:
+        is_partial_mention = bool(message and re.search(
+            r"\b(?:one|some)\s+of\s+(?:our|the|my)\s+(?:guests|friends|colleagues|group|party)\b|\b(?:a|my|another)\s+(?:colleague|friend|partner|spouse)\b|\bone\s+person\s+in\s+the\s+(?:group|party)\b",
+            message,
+            re.IGNORECASE
+        ))
+        if not is_partial_mention:
+            food_counts = [v for v in normalized_food.values() if isinstance(v, int) and v > 0]
+            if food_counts:
+                party_size = sum(food_counts)
+
+    result["party_size"] = party_size
 
     # Recalculate/validate food preference consistency with party_size
     if party_size is not None and normalized_food:
@@ -926,8 +1135,13 @@ def normalize_booking_data(data: dict, base_date: Optional[datetime.date] = None
             or (message and re.search(r"\b(?:non-veg|non-vegetarian|non\s+veg|meat\s+eaters?)\b", message, re.IGNORECASE))
         )
         if has_explicit_non_veg:
-            if restricted_count >= party_size:
-                normalized_food.pop("non_vegetarian", None)
+            if restricted_count >= party_size and "non_vegetarian" in normalized_food and restricted_count > 0:
+                # If message explicitly says non-veg, remove conflicting restrictions
+                if message and re.search(r"\b(?:non-veg|non-vegetarian|non\s+veg)\b", message, re.IGNORECASE):
+                    for k in ("vegetarian", "vegan", "pescatarian"):
+                        normalized_food.pop(k, None)
+                else:
+                    normalized_food.pop("non_vegetarian", None)
             else:
                 curr_non_veg = normalized_food.get("non_vegetarian")
                 if curr_non_veg is None or curr_non_veg + restricted_count > party_size:
@@ -1133,12 +1347,15 @@ def update_booking_state_with_llm(current_state: Optional[dict], message: str) -
             r"\b(?:table|booth|party|reservation|seats?)\s+for\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b",
             r"\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(?:people|guests|persons|diners|seats|of\s+us)\b",
             r"\b(?:add|plus)\s+(?:\d+|one|two|three|four|five|six)\s+(?:more\s+)?(?:people|guests|persons|diners|seats)?\b",
-            r"\b(?:just|only)\s+(?:\d+|one|two|three|four|five|six)\s*(?:people|guests|of\s+us)?\b"
+            r"\b(?:just|only)\s+(?:\d+|one|two|three|four|five|six)\s*(?:people|guests|of\s+us)?\b",
+            r"\b(?:actually|sorry|no,?\s*(?:i\s+want)?|scratch\s+that|meant)\s+(?:\w+\s+)*(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b",
+            r"\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(?:instead)\b",
+            r"\b(?:there\s+will\s+be|we\s+have|we\s+are)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?:people|guests|of\s+us)?\b",
         ]
         has_explicit_party_change = any(re.search(p, msg_lower) for p in explicit_party_patterns)
         is_preference_mention = bool(re.search(r"\b(?:colleague|friend|partner|spouse|guest|someone|person|one|two|three|four|five|six)\b.*\b(?:vegetarian|vegan|allergy|allergic|gluten|celiac|nut|peanut|dairy|lactose|halal|kosher|pescatarian|diet|wheelchair|window|booth|seating|high\s*chair)\b", msg_lower))
 
-        if not has_explicit_party_change or (is_preference_mention and not re.search(r"\b(?:make\s+it|change\s+to|switch\s+to)\s+\d+\b", msg_lower)):
+        if not has_explicit_party_change or (is_preference_mention and not re.search(r"\b(?:make\s+it|change\s+to|switch\s+to|actually|sorry)\s+\d+\b", msg_lower)):
             normalized["party_size"] = base_state["party_size"]
             # Re-normalize to ensure preference counts are consistent with preserved party size
             normalized = normalize_booking_data(normalized, base_date=today, message=message)
@@ -1149,12 +1366,56 @@ def update_booking_state_with_llm(current_state: Optional[dict], message: str) -
     if base_state.get("party_size") is not None and normalized.get("party_size") is None:
         if not re.search(r"\b(?:cancel|remove|clear)\s+(?:the\s+)?party\s*size\b", msg_lower):
             normalized["party_size"] = base_state["party_size"]
+    elif base_state.get("party_size") is None and normalized.get("party_size") is None:
+        explicit_ps = extract_explicit_party_size(message)
+        if explicit_ps is not None and explicit_ps > 0:
+            normalized["party_size"] = explicit_ps
+        else:
+            food_pref = normalized.get("food_preference")
+            if isinstance(food_pref, dict) and food_pref:
+                is_partial_mention = bool(message and re.search(
+                    r"\b(?:one|some)\s+of\s+(?:our|the|my)\s+(?:guests|friends|colleagues|group|party)\b|\b(?:a|my|another)\s+(?:colleague|friend|partner|spouse)\b|\bone\s+person\s+in\s+the\s+(?:group|party)\b",
+                    message,
+                    re.IGNORECASE
+                ))
+                if not is_partial_mention:
+                    food_counts = [v for v in food_pref.values() if isinstance(v, int) and v > 0]
+                    if food_counts:
+                        normalized["party_size"] = sum(food_counts)
 
     # Date preservation: Only change date when customer explicitly provides or changes a date
     DATE_MENTION_PATTERN = r"\b(?:today|tonight|tomorrow|day\s+after\s+tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|date|day)\b|\b\d{4}-\d{2}-\d{2}\b"
     if base_state.get("date") is not None:
         if not re.search(DATE_MENTION_PATTERN, msg_lower):
             normalized["date"] = base_state["date"]
+        elif re.search(r"\b(?:actually|make\s+that|change\s+to|change\s+(?:the\s+)?(?:date|day)\s+to|switch\s+to|move\s+to|instead|sorry)\b", msg_lower):
+            m_target = (
+                re.search(r"\b(?:to|make\s+(?:that|it)|switch\s+to|move\s+to)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", msg_lower)
+                or re.search(r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+instead\b", msg_lower)
+            )
+            target_name = m_target.group(1).lower() if m_target else None
+            if not target_name:
+                all_days = re.findall(r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", msg_lower)
+                if len(all_days) == 1:
+                    target_name = all_days[0].lower()
+
+            if target_name:
+                try:
+                    base_dt = datetime.date.fromisoformat(base_state["date"])
+                    current_week_start = base_dt - timedelta(days=base_dt.weekday())
+                    days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+                    target_wd = days.index(target_name)
+                    expected_date = (current_week_start + timedelta(days=target_wd)).isoformat()
+
+                    curr_norm_date = normalized.get("date")
+                    if not curr_norm_date:
+                        normalized["date"] = expected_date
+                    else:
+                        norm_dt = datetime.date.fromisoformat(curr_norm_date)
+                        if norm_dt.strftime("%A").lower() != target_name or norm_dt < current_week_start:
+                            normalized["date"] = expected_date
+                except ValueError:
+                    pass
     elif normalized.get("date") is None and base_state.get("date") is not None:
         if not re.search(r"\b(?:cancel|remove|clear|never\s*mind)\s+(?:the\s+)?date\b|\b(?:any\s+day|any\s+date)\s+is\s+(?:fine|good|okay)\b", msg_lower):
             normalized["date"] = base_state["date"]
@@ -1192,32 +1453,61 @@ def update_booking_state_with_llm(current_state: Optional[dict], message: str) -
                 h, m = map(int, curr_time.split(":")[:2])
                 normalized["time"] = f"{(h + 1) % 24:02d}:{m:02d}"
 
-    # Incremental dietary accumulation: preserve confirmed restrictions when another is added
-    if isinstance(base_state.get("food_preference"), dict) and base_state.get("food_preference"):
-        from state_manager import FOOD_REMOVAL_PATTERNS
-        is_removal = any(re.search(p, msg_lower, re.IGNORECASE) for p in FOOD_REMOVAL_PATTERNS)
-        is_substitution = bool(re.search(r"\b(?:actually|instead|rather than|switch to|change to)\b.*\b(?:vegan|vegetarian|gluten|dairy|nut|halal|kosher)\b", msg_lower)) and not re.search(r"\b(?:and|also|both|in addition)\b", msg_lower)
-        if not is_removal and not is_substitution:
-            if not isinstance(normalized.get("food_preference"), dict):
-                normalized["food_preference"] = dict(base_state["food_preference"])
+    # Food preference update & reconciliation
+    from state_manager import FOOD_REMOVAL_PATTERNS, is_explicit_correction, is_additive_signal, has_all_semantics
+
+    # 1. Conversational food removals
+    is_removal = any(re.search(pattern, msg_lower, re.IGNORECASE) for pattern in FOOD_REMOVAL_PATTERNS)
+    if is_removal:
+        normalized["food_preference"] = {}
+    else:
+        new_food = normalized.get("food_preference")
+        old_food = base_state.get("food_preference")
+
+        is_correction = is_explicit_correction(msg_lower)
+        is_all = has_all_semantics(msg_lower)
+        is_additive = is_additive_signal(msg_lower)
+
+        # Check if new food preference covers the full party
+        party_sz = normalized.get("party_size") or base_state.get("party_size")
+        is_full_table = False
+        if isinstance(new_food, dict) and new_food and party_sz:
+            is_full_table = any(v == party_sz for v in new_food.values() if isinstance(v, int)) or (
+                sum(v for v in new_food.values() if isinstance(v, int)) == party_sz
+            )
+
+        # Check for contradictory dietary items between old and new
+        has_contradiction = False
+        if isinstance(new_food, dict) and isinstance(old_food, dict):
+            new_has_non_veg = "non_vegetarian" in new_food
+            old_has_veg = any(k in old_food for k in ("vegetarian", "vegan", "pescatarian"))
+            new_has_veg = any(k in new_food for k in ("vegetarian", "vegan", "pescatarian"))
+            old_has_non_veg = "non_vegetarian" in old_food
+            if (new_has_non_veg and old_has_veg) or (new_has_veg and old_has_non_veg):
+                has_contradiction = True
+
+        if isinstance(new_food, dict) and new_food:
+            if (is_correction or is_all or is_full_table or has_contradiction) and not is_additive:
+                # Complete replacement of previous food preferences
+                normalized["food_preference"] = dict(new_food)
+            elif is_additive and isinstance(old_food, dict) and old_food:
+                # Additive accumulation (e.g. "and another colleague is vegetarian")
+                merged_food = dict(old_food)
+                merged_food.update(new_food)
+                normalized["food_preference"] = merged_food
+            elif isinstance(old_food, dict) and old_food:
+                merged_food = dict(old_food)
+                merged_food.update(new_food)
+                if "non_vegetarian" in new_food:
+                    for k in ("vegetarian", "vegan", "pescatarian"):
+                        merged_food.pop(k, None)
+                elif any(k in new_food for k in ("vegetarian", "vegan", "pescatarian")):
+                    merged_food.pop("non_vegetarian", None)
+                normalized["food_preference"] = merged_food
             else:
-                for k, v in base_state["food_preference"].items():
-                    if k != "non_vegetarian" and k not in normalized["food_preference"]:
-                        normalized["food_preference"][k] = v
-
-    # Conversational food removals
-    from state_manager import FOOD_REMOVAL_PATTERNS
-    for pattern in FOOD_REMOVAL_PATTERNS:
-        if re.search(pattern, msg_lower, re.IGNORECASE):
-            normalized["food_preference"] = {}
-            break
-
-    # Dietary requirement substitution: "make it vegan instead of vegetarian" / "make it vegan"
-    if re.search(r"\b(?:actually|instead|rather than|switch to|change to)\b.*\bvegan\b", msg_lower) and not re.search(r"\b(?:and|also|both|in addition)\b", msg_lower):
-        if isinstance(normalized.get("food_preference"), dict):
-            normalized["food_preference"].pop("vegetarian", None)
-            if "vegan" not in normalized["food_preference"]:
-                normalized["food_preference"]["vegan"] = 1
+                normalized["food_preference"] = dict(new_food)
+        elif isinstance(old_food, dict) and old_food and not is_removal:
+            normalized["food_preference"] = dict(old_food)
 
     # Re-normalize to guarantee consistency
     normalized = normalize_booking_data(normalized, base_date=today, message=message)

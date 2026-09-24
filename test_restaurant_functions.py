@@ -29,6 +29,8 @@ class TestRestaurantFunctions(unittest.TestCase):
         self.assertEqual(result["date"], "Saturday")
         self.assertEqual(result["time"], "20:00")
         self.assertEqual(result["party_size"], 4)
+        self.assertNotIn("number_of_guests", result)
+        self.assertNotIn("new_number_of_guests", result)
         self.assertTrue(result["available"])
         print("\n[TEST] check_availability output:")
         print(json.dumps(result, indent=2))
@@ -48,6 +50,8 @@ class TestRestaurantFunctions(unittest.TestCase):
         self.assertEqual(result["date"], "Friday")
         self.assertEqual(result["time"], "19:30")
         self.assertEqual(result["party_size"], 2)
+        self.assertNotIn("number_of_guests", result)
+        self.assertNotIn("new_number_of_guests", result)
         self.assertTrue("booking_id" in result)
         self.assertTrue(result["booking_id"].startswith("BK-"))
         print("\n[TEST] create_booking output:")
@@ -68,6 +72,8 @@ class TestRestaurantFunctions(unittest.TestCase):
         self.assertEqual(result["new_date"], "Sunday")
         self.assertEqual(result["new_time"], "20:30")
         self.assertEqual(result["new_party_size"], 6)
+        self.assertNotIn("number_of_guests", result)
+        self.assertNotIn("new_number_of_guests", result)
         print("\n[TEST] modify_booking output:")
         print(json.dumps(result, indent=2))
 
@@ -84,6 +90,8 @@ class TestRestaurantFunctions(unittest.TestCase):
         self.assertIsNone(result["new_date"])
         self.assertIsNone(result["new_time"])
         self.assertEqual(result["new_party_size"], 5)
+        self.assertNotIn("number_of_guests", result)
+        self.assertNotIn("new_number_of_guests", result)
 
     def test_cancel_booking(self):
         """Test cancelling a booking using booking ID."""
@@ -92,6 +100,8 @@ class TestRestaurantFunctions(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["action"], "cancel_booking")
         self.assertEqual(result["booking_id"], "BK-5421")
+        self.assertNotIn("number_of_guests", result)
+        self.assertNotIn("new_number_of_guests", result)
         self.assertIn("cancelled", result["message"].lower())
         print("\n[TEST] cancel_booking output:")
         print(json.dumps(result, indent=2))

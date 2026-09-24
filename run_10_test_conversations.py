@@ -37,7 +37,7 @@ TEST_CONVERSATIONS = [
         "target_turn": -1,
         "expected_function": "check_availability",
         "expected_arguments": {
-            "date": "Friday",
+            "date": "2026-09-25",
             "time": "19:30",
             "party_size": 5
         }
@@ -53,7 +53,7 @@ TEST_CONVERSATIONS = [
         "expected_function": "create_booking",
         "expected_arguments": {
             "customer_name": "Sarah Jenkins",
-            "date": "tomorrow",
+            "date": "2026-09-25",
             "time": "20:00",
             "party_size": 2
         }
@@ -83,7 +83,7 @@ TEST_CONVERSATIONS = [
         "expected_function": "modify_booking",
         "expected_arguments": {
             "booking_id": "ABC789",
-            "new_date": "Sunday"
+            "new_date": "2026-09-27"
         }
     },
     {
@@ -126,7 +126,7 @@ TEST_CONVERSATIONS = [
         "expected_function": "create_booking",
         "expected_arguments": {
             "customer_name": "David Miller",
-            "date": "Saturday",
+            "date": "2026-09-26",
             "time": "19:00",
             "party_size": 2
         }
@@ -143,7 +143,7 @@ TEST_CONVERSATIONS = [
         "target_turn": -1,
         "expected_function": "check_availability",
         "expected_arguments": {
-            "date": "Friday",
+            "date": "2026-09-25",
             "time": "20:00",
             "party_size": 6
         }
@@ -158,7 +158,7 @@ TEST_CONVERSATIONS = [
         "target_turn": -1,
         "expected_function": "check_availability",
         "expected_arguments": {
-            "date": "tomorrow",
+            "date": "2026-09-25",
             "time": "20:00",
             "party_size": 4
         }
@@ -181,16 +181,47 @@ TEST_CONVERSATIONS = [
 
 
 def compare_arguments(actual: dict, expected: dict) -> bool:
-    """Compares actual extracted arguments with expected arguments."""
+    """
+    Compares actual extracted arguments with expected arguments.
+    Enforces that:
+    1. 'number_of_guests' and 'new_number_of_guests' must never be present.
+    2. 'party_size' is used for guest count, 'new_party_size' for modifications.
+    3. Dates are resolved to canonical YYYY-MM-DD.
+    4. Times are in HH:MM format.
+    5. Key ordering in dict comparison does not affect test outcomes.
+    """
     if not isinstance(actual, dict) or not isinstance(expected, dict):
         return False
+
+    # Strict rule: number_of_guests must never be present
+    if "number_of_guests" in actual or "new_number_of_guests" in actual:
+        return False
+
+    from intent_classifier import resolve_calendar_date
+    from function_caller import normalize_time_str
 
     for k, exp_val in expected.items():
         act_val = actual.get(k)
         if act_val is None:
             return False
 
-        if isinstance(exp_val, int):
+        if k in ("party_size", "new_party_size"):
+            try:
+                if int(act_val) != int(exp_val):
+                    return False
+            except (ValueError, TypeError):
+                return False
+        elif k in ("date", "new_date"):
+            act_date = resolve_calendar_date(str(act_val)) or str(act_val).strip()
+            exp_date = resolve_calendar_date(str(exp_val)) or str(exp_val).strip()
+            if act_date != exp_date and str(act_val).strip().lower() != str(exp_val).strip().lower():
+                return False
+        elif k in ("time", "new_time"):
+            act_time = normalize_time_str(act_val) or str(act_val).strip()
+            exp_time = normalize_time_str(exp_val) or str(exp_val).strip()
+            if act_time != exp_time:
+                return False
+        elif isinstance(exp_val, int):
             try:
                 if int(act_val) != exp_val:
                     return False

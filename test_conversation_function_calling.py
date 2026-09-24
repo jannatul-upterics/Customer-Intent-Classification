@@ -29,7 +29,7 @@ def run_tests():
             "message": "Is there a table available for 4 people tomorrow at 8 PM?",
             "expected_function": "check_availability",
             "expected_arguments": {
-                "date": "tomorrow",
+                "date": "2026-09-25",
                 "time": "20:00",
                 "party_size": 4
             }
@@ -40,7 +40,7 @@ def run_tests():
             "expected_function": "create_booking",
             "expected_arguments": {
                 "customer_name": "Jannatul",
-                "date": "tomorrow",
+                "date": "2026-09-25",
                 "time": "20:00",
                 "party_size": 4
             }
@@ -116,10 +116,19 @@ def run_tests():
             exp_args = tc["expected_arguments"]
 
             args_match = True
-            for k, v in exp_args.items():
-                if args.get(k) != v:
-                    args_match = False
-                    break
+            if "number_of_guests" in args or "new_number_of_guests" in args:
+                args_match = False
+            else:
+                from intent_classifier import resolve_calendar_date
+                for k, v in exp_args.items():
+                    act_val = args.get(k)
+                    if k in ("date", "new_date"):
+                        if resolve_calendar_date(str(act_val)) != resolve_calendar_date(str(v)) and str(act_val).lower() != str(v).lower():
+                            args_match = False
+                            break
+                    elif act_val != v:
+                        args_match = False
+                        break
 
             is_correct = func_match and args_match
 

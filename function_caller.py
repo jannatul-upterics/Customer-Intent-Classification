@@ -29,6 +29,7 @@ import re
 import json
 import time
 import inspect
+import datetime
 from typing import Optional, Dict, Any, List
 import requests
 
@@ -45,6 +46,7 @@ from restaurant_functions import (
     modify_booking,
     cancel_booking
 )
+from intent_classifier import build_reference_calendar, resolve_calendar_date
 
 # Function registry mapping LLM tool names to Python callables
 FUNCTION_REGISTRY = {
@@ -71,12 +73,14 @@ You have access to the following tools:
 4. cancel_booking(booking_id): Cancel an existing booking using its booking ID.
 
 CRITICAL OPERATIONAL RULES:
+- Always use party_size to represent the number of guests. Never use number_of_guests. The field number_of_guests is invalid and must never be included in function arguments. For modification requests, use new_party_size when the customer changes the number of guests.
+- Standardize all date values to strict ISO 'YYYY-MM-DD' format (e.g., resolve relative dates like 'tomorrow', 'Friday', 'this Saturday' using the calendar reference).
+- Standardize all time values to strict 24-hour "HH:MM" format (e.g., "8 PM" -> "20:00", "7:30 PM" -> "19:30").
 - Only call a function when the customer's request clearly warrants it.
 - Never call a function unnecessarily (e.g. for general questions about operating hours, menus, greetings, or unrelated questions). Reply directly with helpful text.
 - NEVER invent, assume, or hallucinate missing parameter values (such as customer names, dates, times, party sizes, or booking IDs).
 - If the customer asks to book without providing a name, do NOT call create_booking. If date, time, and party size are present, call check_availability, or ask for the missing name.
 - If the customer wants to cancel or modify a reservation without giving their booking ID, reply directly asking for their booking ID.
-- Standardize all time values to strict 24-hour "HH:MM" format (e.g., "8 PM" -> "20:00", "7:30 PM" -> "19:30").
 - When you receive a function execution result in a tool message, formulate a friendly, concise, natural response explaining or confirming the result to the customer. Never output raw code or raw JSON to the customer.
 """
 
@@ -115,14 +119,6 @@ def normalize_arguments(action: str, raw_args: Dict[str, Any]) -> Dict[str, Any]
     """Cleans, standardizes, and normalizes function arguments."""
     normalized = {}
 
-    # Map number_of_guests and party_size aliases in input
-    if "number_of_guests" in raw_args and ("party_size" not in raw_args or raw_args["party_size"] is None):
-        raw_args["party_size"] = raw_args["number_of_guests"]
-    if "new_number_of_guests" in raw_args and ("new_party_size" not in raw_args or raw_args["new_party_size"] is None):
-        raw_args["new_party_size"] = raw_args["new_number_of_guests"]
-    if "guests" in raw_args and ("party_size" not in raw_args or raw_args["party_size"] is None):
-        raw_args["party_size"] = raw_args["guests"]
-
     # Handle parameter aliases (e.g. LLM passing 'party_size' to modify_booking instead of 'new_party_size')
     if action == "modify_booking":
         if "party_size" in raw_args and "new_party_size" not in raw_args:
@@ -132,33 +128,44 @@ def normalize_arguments(action: str, raw_args: Dict[str, Any]) -> Dict[str, Any]
         if "time" in raw_args and "new_time" not in raw_args:
             raw_args["new_time"] = raw_args["time"]
 
+    # Normalize date fields to strict ISO YYYY-MM-DD
+    if "date" in raw_args and raw_args["date"] is not None:
+        d_val = str(raw_args["date"]).strip()
+        if (d_val.startswith('"') and d_val.endswith('"')) or (d_val.startswith("'") and d_val.endswith("'")):
+            d_val = d_val[1:-1].strip()
+        resolved = resolve_calendar_date(d_val)
+        normalized["date"] = resolved if resolved else d_val
+
+    if "new_date" in raw_args and raw_args["new_date"] is not None:
+        d_val = str(raw_args["new_date"]).strip()
+        if (d_val.startswith('"') and d_val.endswith('"')) or (d_val.startswith("'") and d_val.endswith("'")):
+            d_val = d_val[1:-1].strip()
+        resolved = resolve_calendar_date(d_val)
+        normalized["new_date"] = resolved if resolved else d_val
+
     # Normalize time fields
     if "time" in raw_args and raw_args["time"] is not None:
         normalized["time"] = normalize_time_str(raw_args["time"])
     if "new_time" in raw_args and raw_args["new_time"] is not None:
         normalized["new_time"] = normalize_time_str(raw_args["new_time"])
 
-    # Normalize party size fields
+    # Normalize party size fields (party_size and new_party_size only)
     if "party_size" in raw_args and raw_args["party_size"] is not None:
         try:
             val = int(raw_args["party_size"])
             normalized["party_size"] = val
-            normalized["number_of_guests"] = val
         except (ValueError, TypeError):
             normalized["party_size"] = raw_args["party_size"]
-            normalized["number_of_guests"] = raw_args["party_size"]
 
     if "new_party_size" in raw_args and raw_args["new_party_size"] is not None:
         try:
             val = int(raw_args["new_party_size"])
             normalized["new_party_size"] = val
-            normalized["new_number_of_guests"] = val
         except (ValueError, TypeError):
             normalized["new_party_size"] = raw_args["new_party_size"]
-            normalized["new_number_of_guests"] = raw_args["new_party_size"]
 
     # String fields
-    for field in ("customer_name", "date", "new_date", "booking_id"):
+    for field in ("customer_name", "booking_id"):
         if field in raw_args and raw_args[field] is not None:
             val = str(raw_args[field]).strip()
             if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
@@ -488,8 +495,10 @@ def process_customer_request(
     seen = set()
     models_to_try = [m for m in models_to_try if m and not (m in seen or seen.add(m))]
 
-    # Build system prompt with active conversation state if available
-    system_prompt = SYSTEM_ROUTER_PROMPT
+    # Build system prompt with reference calendar and active conversation state if available
+    today = datetime.date.today()
+    cal_ref = build_reference_calendar(today)
+    system_prompt = f"{SYSTEM_ROUTER_PROMPT}\n\n{cal_ref}"
     if current_state:
         active_state = {k: v for k, v in current_state.items() if v is not None and v != []}
         system_prompt += (
@@ -501,6 +510,7 @@ def process_customer_request(
             f"3. When the customer asks to finalize or confirm a reservation, invoke 'create_booking' using the accumulated date, time, party_size, and customer_name.\n"
             f"4. Do NOT ask the customer to repeat details (date, time, party size) that are already present in the Current Conversation State.\n"
             f"5. When modifying or cancelling a reservation across multiple turns, if booking_id is in Current Conversation State or prior messages, invoke 'modify_booking' or 'cancel_booking' using that booking_id.\n"
+            f"6. Always use party_size to represent the number of guests. Never use number_of_guests. For modification requests, use new_party_size when the customer changes the number of guests.\n"
         )
 
     # Build initial message chain

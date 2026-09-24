@@ -63,6 +63,37 @@ PARTY_SIZE_REMOVAL_PATTERNS = [
     r"\bnot\s+sure\s+about\s+(?:the\s+)?(?:number\s+of\s+people|guest\s+count|party\s*size)\b"
 ]
 
+# Regex patterns to identify explicit customer correction / slot replacement
+CORRECTION_PATTERNS = [
+    r"\b(?:actually|sorry|instead|rather\s+than|rather|scratch\s+that)\b",
+    r"\b(?:change(?:\s+it|\s+that)?(?:\s+to)?|switch(?:\s+to)?|update(?:\s+to)?|make\s+it|make\s+that)\b",
+    r"\b(?:no\s*,\s*|no\s+)(?:i\s+want|we\s+want|make\s+it|let's\s+do|i\s+meant|we\s+meant)\b",
+    r"\bi\s+changed\s+my\s+mind\b",
+    r"\b(?:i\s+meant|meant\s+to\s+say|correction)\b",
+    r"\b(?:wait\s*,\s*no|wait\s+no)\b",
+]
+
+def is_explicit_correction(message: str) -> bool:
+    """Checks whether the customer message contains explicit correction / replacement signals."""
+    if not message:
+        return False
+    msg_lower = message.lower()
+    return any(re.search(p, msg_lower) for p in CORRECTION_PATTERNS)
+
+def is_additive_signal(message: str) -> bool:
+    """Checks whether the customer message indicates adding to existing requirements rather than replacing."""
+    if not message:
+        return False
+    msg_lower = message.lower()
+    return bool(re.search(r"\b(?:also|and\s+another|and\s+also|in\s+addition|another|as\s+well|plus)\b", msg_lower))
+
+def has_all_semantics(message: str) -> bool:
+    """Checks whether the message specifies a preference for the entire party/all guests."""
+    if not message:
+        return False
+    msg_lower = message.lower()
+    return bool(re.search(r"\b(?:all|everyone|everybody|all\s+of\s+us|entire\s+party|whole\s+party|all\s+meals?|all\s+guests?)\b", msg_lower))
+
 
 class BookingState:
     """
@@ -82,6 +113,7 @@ class BookingState:
         self.other_preferences: Dict[str, Any] = {}
         self.customer_name: Optional[str] = None
         self.booking_id: Optional[str] = None
+        self.all_food_preference: Optional[str] = None
         self.history: List[Dict[str, Any]] = []
         self.conversation_messages: List[Dict[str, str]] = []
 
@@ -126,6 +158,7 @@ class BookingState:
         self.other_preferences = {}
         self.customer_name = None
         self.booking_id = None
+        self.all_food_preference = None
         self.history = []
         self.conversation_messages = []
         return self.to_dict()
@@ -181,6 +214,7 @@ class BookingState:
         """
         if field == "food_preference":
             self.food_preference = {} if isinstance(self.food_preference, dict) else []
+            self.all_food_preference = None
         elif field == "seating_preference":
             self.seating_preference = {}
         elif field == "accessibility_requirement":
@@ -205,10 +239,12 @@ class BookingState:
         if isinstance(self.food_preference, dict):
             if normalized in self.food_preference:
                 del self.food_preference[normalized]
+                self.all_food_preference = None
                 return True
         elif isinstance(self.food_preference, list):
             if normalized in self.food_preference:
                 self.food_preference.remove(normalized)
+                self.all_food_preference = None
                 return True
         return False
 
@@ -233,6 +269,7 @@ class BookingState:
         for pattern in FOOD_REMOVAL_PATTERNS:
             if re.search(pattern, msg_lower, re.IGNORECASE):
                 self.food_preference = {} if isinstance(self.food_preference, dict) else []
+                self.all_food_preference = None
                 break
 
         # Seating preference removal check
@@ -297,7 +334,7 @@ class BookingState:
             cleaned_intent = str(new_intent).strip().lower()
             msg_lower = message.lower() if message else ""
             stopped_booking = bool(re.search(r"\b(?:don't|do not|stop|cancel|no longer)\s+(?:want\s+to\s+)?(?:book|reserve)\b", msg_lower))
-            has_question = bool(re.search(r"\b(?:can you|could you|what|when|where|how|hours|time|menu|\?)\b", msg_lower))
+            has_question = bool("?" in msg_lower or re.search(r"\b(?:can you|could you|what|when|where|how|hours|time|menu|offer|catering|takeout|do you)\b", msg_lower))
 
             if stopped_booking:
                 if has_question or cleaned_intent == "inquiry":
@@ -319,6 +356,7 @@ class BookingState:
 
         # 3. Update party size (add / overwrite / keep)
         new_party_size = extracted.get("party_size")
+        party_size_changed = False
         if new_party_size is not None:
             if self.party_size is not None and new_party_size != self.party_size and message:
                 msg_lower = message.lower()
@@ -328,16 +366,57 @@ class BookingState:
                     r"\b(?:table|booth|party|reservation|seats?)\s+for\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b",
                     r"\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(?:people|guests|persons|diners|seats|of\s+us)\b",
                     r"\b(?:add|plus)\s+(?:\d+|one|two|three|four|five|six)\s+(?:more\s+)?(?:people|guests|persons|diners|seats)?\b",
-                    r"\b(?:just|only)\s+(?:\d+|one|two|three|four|five|six)\s*(?:people|guests|of\s+us)?\b"
+                    r"\b(?:just|only)\s+(?:\d+|one|two|three|four|five|six)\s*(?:people|guests|of\s+us)?\b",
+                    r"\b(?:actually|sorry|no,?\s*(?:i\s+want)?|scratch\s+that|meant)\s+(?:\w+\s+)*(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b",
+                    r"\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(?:instead)\b",
+                    r"\b(?:there\s+will\s+be|we\s+have|we\s+are)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?:people|guests|of\s+us)?\b",
                 ]
                 has_explicit_party_change = any(re.search(p, msg_lower) for p in explicit_party_patterns)
                 is_preference_mention = bool(re.search(r"\b(?:colleague|friend|partner|spouse|guest|someone|person|one|two|three|four|five|six)\b.*\b(?:vegetarian|vegan|allergy|allergic|gluten|celiac|nut|peanut|dairy|lactose|halal|kosher|pescatarian|diet|wheelchair|window|booth|seating|access|high\s*chair)\b", msg_lower))
 
-                if has_explicit_party_change and not (is_preference_mention and not re.search(r"\b(?:make\s+it|change\s+to|switch\s+to)\s+\d+\b", msg_lower)):
+                if has_explicit_party_change and not (is_preference_mention and not re.search(r"\b(?:make\s+it|change\s+to|switch\s+to|actually|sorry)\s+\d+\b", msg_lower)):
                     self.party_size = new_party_size
+                    party_size_changed = True
                 # otherwise preserve current party_size
             else:
+                if self.party_size != new_party_size:
+                    party_size_changed = True
                 self.party_size = new_party_size
+        elif self.party_size is None:
+            from intent_classifier import extract_explicit_party_size
+            explicit_ps = extract_explicit_party_size(message) if message else None
+            if explicit_ps is not None and explicit_ps > 0:
+                self.party_size = explicit_ps
+                party_size_changed = True
+            else:
+                food_dict = extracted.get("food_preference")
+                if isinstance(food_dict, dict) and food_dict:
+                    is_partial_mention = bool(message and re.search(
+                        r"\b(?:one|some)\s+of\s+(?:our|the|my)\s+(?:guests|friends|colleagues|group|party)\b|\b(?:a|my|another)\s+(?:colleague|friend|partner|spouse)\b|\bone\s+person\s+in\s+the\s+(?:group|party)\b",
+                        message,
+                        re.IGNORECASE
+                    ))
+                    if not is_partial_mention:
+                        food_counts = [v for v in food_dict.values() if isinstance(v, int) and v > 0]
+                        if food_counts:
+                            self.party_size = sum(food_counts)
+                            party_size_changed = True
+
+        # Rule 5: If party size changed, update dependent preferences
+        if party_size_changed and self.party_size is not None:
+            if self.all_food_preference and isinstance(self.food_preference, dict):
+                self.food_preference = {self.all_food_preference: self.party_size}
+            elif isinstance(self.food_preference, dict) and self.food_preference:
+                for k, v in list(self.food_preference.items()):
+                    if isinstance(v, int) and v > self.party_size:
+                        self.food_preference[k] = self.party_size
+                total_counts = sum(v for v in self.food_preference.values() if isinstance(v, int))
+                if total_counts > self.party_size and "non_vegetarian" in self.food_preference:
+                    restricted = sum(v for k, v in self.food_preference.items() if k != "non_vegetarian" and isinstance(v, int))
+                    if restricted >= self.party_size:
+                        self.food_preference.pop("non_vegetarian", None)
+                    else:
+                        self.food_preference["non_vegetarian"] = self.party_size - restricted
 
         # 4. Update date (add / overwrite / keep)
         new_date = extracted.get("date")
@@ -370,32 +449,81 @@ class BookingState:
         # 6. Update food preference (handle dict with counts or list)
         new_food = extracted.get("food_preference")
         msg_lower = message.lower() if message else ""
-        is_replacement = bool(re.search(r"\b(?:actually|instead|change(?:\s+it|\s+that)?\s+to|make it|rather than)\b", msg_lower))
-        is_addition = bool(re.search(r"\b(?:also|and|in addition|another|as well|plus|both)\b", msg_lower))
+        is_correction = is_explicit_correction(msg_lower)
+        is_all = has_all_semantics(msg_lower)
+        is_additive = is_additive_signal(msg_lower)
 
         if isinstance(new_food, dict):
-            if is_replacement and not is_addition and new_food:
-                self.food_preference = dict(new_food)
-            elif new_food:
-                if isinstance(self.food_preference, dict):
-                    # Merge preferences
+            # Check for contradictory dietary requirements
+            new_has_non_veg = "non_vegetarian" in new_food
+            old_has_veg = isinstance(self.food_preference, dict) and any(k in self.food_preference for k in ("vegetarian", "vegan", "pescatarian"))
+            new_has_veg = any(k in new_food for k in ("vegetarian", "vegan", "pescatarian"))
+            old_has_non_veg = isinstance(self.food_preference, dict) and "non_vegetarian" in self.food_preference
+            has_contradiction = (new_has_non_veg and old_has_veg) or (new_has_veg and old_has_non_veg)
+
+            # Check if new preference covers full table
+            is_full_table = False
+            if self.party_size and new_food:
+                is_full_table = any(v == self.party_size for v in new_food.values() if isinstance(v, int)) or (
+                    sum(v for v in new_food.values() if isinstance(v, int)) == self.party_size
+                )
+
+            if new_food:
+                if (is_correction or is_all or is_full_table or has_contradiction) and not is_additive:
+                    # Complete replacement of previous food preferences
+                    self.food_preference = dict(new_food)
+                    if is_all and len(new_food) == 1:
+                        self.all_food_preference = next(iter(new_food.keys()))
+                    else:
+                        self.all_food_preference = None
+                elif is_additive and isinstance(self.food_preference, dict):
                     merged = dict(self.food_preference)
                     merged.update(new_food)
                     self.food_preference = merged
+                    self.all_food_preference = None
+                elif isinstance(self.food_preference, dict):
+                    # Merge preferences, removing any contradictory items
+                    merged = dict(self.food_preference)
+                    merged.update(new_food)
+                    if new_has_non_veg:
+                        for k in ("vegetarian", "vegan", "pescatarian"):
+                            merged.pop(k, None)
+                    elif new_has_veg:
+                        merged.pop("non_vegetarian", None)
+                    self.food_preference = merged
+                    if is_all and len(new_food) == 1:
+                        self.all_food_preference = next(iter(new_food.keys()))
+                    else:
+                        self.all_food_preference = None
                 else:
                     self.food_preference = dict(new_food)
+                    if is_all and len(new_food) == 1:
+                        self.all_food_preference = next(iter(new_food.keys()))
+                    else:
+                        self.all_food_preference = None
         elif isinstance(new_food, list):
-            if is_replacement and not is_addition and new_food:
-                # Substitute/replace previous preferences
-                self.food_preference = [str(x).strip().lower() for x in new_food if x and str(x).strip()]
-            elif new_food:
+            cleaned_new = [str(x).strip().lower() for x in new_food if x and str(x).strip()]
+            if (is_correction or is_all) and not is_additive and cleaned_new:
+                self.food_preference = cleaned_new
+            elif cleaned_new:
                 if isinstance(self.food_preference, list):
-                    for item in new_food:
-                        tag = str(item).strip().lower()
-                        if tag and tag not in self.food_preference:
-                            self.food_preference.append(tag)
+                    for item in cleaned_new:
+                        if item not in self.food_preference:
+                            self.food_preference.append(item)
                 else:
-                    self.food_preference = [str(x).strip().lower() for x in new_food if x and str(x).strip()]
+                    self.food_preference = cleaned_new
+
+        # Check if party_size can be inferred from food_preference if still None
+        if self.party_size is None and isinstance(self.food_preference, dict) and self.food_preference:
+            is_partial_mention = bool(message and re.search(
+                r"\b(?:one|some)\s+of\s+(?:our|the|my)\s+(?:guests|friends|colleagues|group|party)\b|\b(?:a|my|another)\s+(?:colleague|friend|partner|spouse)\b|\bone\s+person\s+in\s+the\s+(?:group|party)\b",
+                message,
+                re.IGNORECASE
+            ))
+            if not is_partial_mention:
+                food_counts = [v for v in self.food_preference.values() if isinstance(v, int) and v > 0]
+                if food_counts:
+                    self.party_size = sum(food_counts)
 
         # 7. Update other preference fields
         if "seating_preference" in extracted and isinstance(extracted["seating_preference"], dict):
@@ -425,7 +553,7 @@ class BookingState:
                 if restricted_count > 0:
                     if restricted_count >= self.party_size:
                         self.food_preference.pop("non_vegetarian", None)
-                    else:
+                    elif "non_vegetarian" in self.food_preference and (restricted_count + self.food_preference["non_vegetarian"] > self.party_size):
                         self.food_preference["non_vegetarian"] = self.party_size - restricted_count
             for pref_dict in (self.seating_preference, self.accessibility_requirement, self.celebration_requirement):
                 if isinstance(pref_dict, dict):

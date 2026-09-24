@@ -65,6 +65,12 @@ def verify_tool_schemas():
             assert req_field in req, f"Missing required field {req_field} in {name}"
             assert req_field in props, f"Missing property {req_field} in {name}"
 
+        # Strict rule: number_of_guests must not exist anywhere in tool definitions
+        assert "number_of_guests" not in props, f"'number_of_guests' found in properties of {name}"
+        assert "number_of_guests" not in req, f"'number_of_guests' found in required of {name}"
+        assert "new_number_of_guests" not in props, f"'new_number_of_guests' found in properties of {name}"
+        assert "new_number_of_guests" not in req, f"'new_number_of_guests' found in required of {name}"
+
     assert len(found_names) == 4, f"Expected 4 tools, found {len(found_names)}"
     print("\n[SUCCESS] All 4 tool schemas strictly verified and compliant.")
 

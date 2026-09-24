@@ -54,7 +54,7 @@ def run_stateful_conversation_test():
             "message": "This Saturday at 8 PM.",
             "expected_state": {
                 "party_size": 4,
-                "date": "Saturday",
+                "date": "2026-09-26",
                 "time": "20:00"
             },
             "expect_function": None
@@ -64,7 +64,7 @@ def run_stateful_conversation_test():
             "message": "Actually, make it 6.",
             "expected_state": {
                 "party_size": 6,
-                "date": "Saturday",
+                "date": "2026-09-26",
                 "time": "20:00"
             },
             "expect_function": None
@@ -74,12 +74,12 @@ def run_stateful_conversation_test():
             "message": "Is that available?",
             "expected_state": {
                 "party_size": 6,
-                "date": "Saturday",
+                "date": "2026-09-26",
                 "time": "20:00"
             },
             "expect_function": "check_availability",
             "expected_args": {
-                "date": "Saturday",
+                "date": "2026-09-26",
                 "time": "20:00",
                 "party_size": 6
             }
@@ -89,14 +89,14 @@ def run_stateful_conversation_test():
             "message": "Great, please book it under Jannatul.",
             "expected_state": {
                 "party_size": 6,
-                "date": "Saturday",
+                "date": "2026-09-26",
                 "time": "20:00",
                 "customer_name": "Jannatul"
             },
             "expect_function": "create_booking",
             "expected_args": {
                 "customer_name": "Jannatul",
-                "date": "Saturday",
+                "date": "2026-09-26",
                 "time": "20:00",
                 "party_size": 6
             }
@@ -128,13 +128,25 @@ def run_stateful_conversation_test():
 
         # Check state expectations
         for k, v in step["expected_state"].items():
-            assert state.get(k) == v, f"Turn {turn_num}: Expected state['{k}'] == {v}, got {state.get(k)}"
+            act_v = state.get(k)
+            if k in ("date", "new_date"):
+                from intent_classifier import resolve_calendar_date
+                assert resolve_calendar_date(str(act_v)) == resolve_calendar_date(str(v)) or str(act_v) == str(v), f"Turn {turn_num}: Expected state['{k}'] == {v}, got {act_v}"
+            else:
+                assert act_v == v, f"Turn {turn_num}: Expected state['{k}'] == {v}, got {act_v}"
 
         # Check function call expectations
         if step["expect_function"]:
             assert fn_called == step["expect_function"], f"Turn {turn_num}: Expected function {step['expect_function']}, got {fn_called}"
+            assert "number_of_guests" not in args, f"Turn {turn_num}: number_of_guests found in args: {args}"
+            assert "new_number_of_guests" not in args, f"Turn {turn_num}: new_number_of_guests found in args: {args}"
+            from intent_classifier import resolve_calendar_date
             for arg_k, arg_v in step["expected_args"].items():
-                assert args.get(arg_k) == arg_v, f"Turn {turn_num}: Expected arg['{arg_k}'] == {arg_v}, got {args.get(arg_k)}"
+                act_arg = args.get(arg_k)
+                if arg_k in ("date", "new_date"):
+                    assert resolve_calendar_date(str(act_arg)) == resolve_calendar_date(str(arg_v)) or str(act_arg) == str(arg_v), f"Turn {turn_num}: Expected arg['{arg_k}'] == {arg_v}, got {act_arg}"
+                else:
+                    assert act_arg == arg_v, f"Turn {turn_num}: Expected arg['{arg_k}'] == {arg_v}, got {act_arg}"
             assert fn_res and fn_res.get("success") is True, f"Turn {turn_num}: Function execution failed: {fn_res}"
             assert resp and len(resp.strip()) > 5, f"Turn {turn_num}: Response too short"
             print(f"--> [PASS] Turn {turn_num}: Function {fn_called} executed with correct stateful arguments!")

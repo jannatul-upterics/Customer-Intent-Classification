@@ -21,22 +21,27 @@ restaurant_prototype/
 
 ## 2. Supported Actions & Specifications
 
+### Strict Parameter Rule
+* `party_size` is the only field used for guest counts.
+* `new_party_size` is used for modifications.
+* `number_of_guests` is strictly eliminated.
+
 ### 1. Check Availability (`check_availability`)
 * **Purpose**: Determine whether a table is free for a given date, time, and guest count.
 * **Input Parameters**:
-  * `date` (*string, required*): The requested reservation date or day (e.g., `"2026-09-12"`, `"Saturday"`, `"tomorrow"`).
-  * `time` (*string, required*): The requested reservation time (e.g., `"20:00"`, `"19:30"`, `"8 PM"`).
-  * `number_of_guests` (*integer, required*): Total dining guests.
+  * `date` (*string, required*): The requested reservation date in ISO format (e.g., `"2026-09-25"`).
+  * `time` (*string, required*): The requested reservation time in 24-hour format (e.g., `"20:00"`, `"19:30"`).
+  * `party_size` (*integer, required*): Total dining guests.
 * **Expected Output**:
   ```json
   {
     "status": "success",
     "action": "check_availability",
     "available": true,
-    "date": "2026-09-12",
+    "date": "2026-09-25",
     "time": "20:00",
-    "number_of_guests": 4,
-    "message": "A table for 4 guests is available on 2026-09-12 at 20:00."
+    "party_size": 4,
+    "message": "A table for 4 guests is available on 2026-09-25 at 20:00."
   }
   ```
 
@@ -46,9 +51,9 @@ restaurant_prototype/
 * **Purpose**: Confirm a new reservation and issue a unique booking reference.
 * **Input Parameters**:
   * `customer_name` (*string, required*): The full name of the customer.
-  * `date` (*string, required*): Reservation date or day.
-  * `time` (*string, required*): Reservation time.
-  * `number_of_guests` (*integer, required*): Total dining guests.
+  * `date` (*string, required*): Reservation date in ISO format (e.g., `"2026-09-26"`).
+  * `time` (*string, required*): Reservation time in 24-hour format.
+  * `party_size` (*integer, required*): Total dining guests.
 * **Expected Output**:
   ```json
   {
@@ -56,10 +61,10 @@ restaurant_prototype/
     "action": "create_booking",
     "booking_id": "RES-5821",
     "customer_name": "Jannatul",
-    "date": "2026-09-12",
+    "date": "2026-09-26",
     "time": "20:00",
-    "number_of_guests": 4,
-    "message": "Booking confirmed for Jannatul (4 guests) on 2026-09-12 at 20:00. Booking ID: RES-5821."
+    "party_size": 4,
+    "message": "Booking confirmed for Jannatul (4 guests) on 2026-09-26 at 20:00. Booking ID: RES-5821."
   }
   ```
 
@@ -69,9 +74,9 @@ restaurant_prototype/
 * **Purpose**: Update an existing reservation's date, time, or guest count.
 * **Input Parameters**:
   * `booking_id` (*string, required*): Existing reservation identifier (e.g., `"RES-5821"`).
-  * `new_date` (*string, optional*): Updated reservation date.
-  * `new_time` (*string, optional*): Updated reservation time.
-  * `new_number_of_guests` (*integer, optional*): Updated guest count.
+  * `new_date` (*string, optional*): Updated reservation date in ISO format.
+  * `new_time` (*string, optional*): Updated reservation time in 24-hour format.
+  * `new_party_size` (*integer, optional*): Updated guest count.
 * **Expected Output**:
   ```json
   {
@@ -79,10 +84,10 @@ restaurant_prototype/
     "action": "modify_booking",
     "booking_id": "RES-5821",
     "updated_fields": {
-      "number_of_guests": 6,
+      "new_party_size": 6,
       "time": "20:30"
     },
-    "message": "Booking RES-5821 successfully updated with: {'number_of_guests': 6, 'time': '20:30'}."
+    "message": "Booking RES-5821 successfully updated with: {'new_party_size': 6, 'time': '20:30'}."
   }
   ```
 

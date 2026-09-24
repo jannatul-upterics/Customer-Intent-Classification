@@ -27,15 +27,15 @@ def run_demonstration():
 
     # 1. Check Availability
     print("\n--- 1. Check Availability ---")
-    print("Input: date='2026-09-12', time='20:00', number_of_guests=4")
-    res1 = check_availability(date="2026-09-12", time="20:00", number_of_guests=4)
+    print("Input: date='2026-09-25', time='20:00', party_size=4")
+    res1 = check_availability(date="2026-09-25", time="20:00", party_size=4)
     print("Output:")
     print(json.dumps(res1, indent=2))
 
     # 2. Create Booking
     print("\n--- 2. Create Booking ---")
-    print("Input: customer_name='Jannatul', date='2026-09-12', time='20:00', number_of_guests=4")
-    res2 = create_booking(customer_name="Jannatul", date="2026-09-12", time="20:00", number_of_guests=4)
+    print("Input: customer_name='Jannatul', date='2026-09-26', time='20:00', party_size=4")
+    res2 = create_booking(customer_name="Jannatul", date="2026-09-26", time="20:00", party_size=4)
     print("Output:")
     print(json.dumps(res2, indent=2))
 
@@ -43,8 +43,8 @@ def run_demonstration():
 
     # 3. Modify Booking
     print(f"\n--- 3. Modify Booking ---")
-    print(f"Input: booking_id='{booking_id}', new_number_of_guests=6, new_time='20:30'")
-    res3 = modify_booking(booking_id=booking_id, new_number_of_guests=6, new_time="20:30")
+    print(f"Input: booking_id='{booking_id}', new_party_size=6, new_time='20:30'")
+    res3 = modify_booking(booking_id=booking_id, new_party_size=6, new_time="20:30")
     print("Output:")
     print(json.dumps(res3, indent=2))
 
@@ -58,7 +58,7 @@ def run_demonstration():
     # 5. Error Handling Demonstration
     print("\n--- 5. Error Handling Sample ---")
     print("Input: create_booking with missing customer_name and negative guests")
-    err_res = create_booking(customer_name="", date="2026-09-12", time="20:00", number_of_guests=-2)
+    err_res = create_booking(customer_name="", date="2026-09-26", time="20:00", party_size=-2)
     print("Output:")
     print(json.dumps(err_res, indent=2))
 
